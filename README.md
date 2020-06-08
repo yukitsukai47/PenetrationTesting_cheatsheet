@@ -1,6 +1,8 @@
 # ペネトレーションテスト用チートシート
 Hack The Boxの攻略やOSCPの取得を目指して、まとめているチートシートです。  
 随時更新して成長していきます。
+<img src="http://www.hackthebox.eu/badge/image/185549" alt="Hack The Box">
+Twitter:@yukitsukai1731
 
 ## 目次
 
