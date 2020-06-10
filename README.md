@@ -43,7 +43,7 @@ Twitter:@yukitsukai1731
     - [windows-exploit-suggester](#windows-exploit-suggester)
     - [evilwinrm](#evilwinrm)
   - [Linux](#linux)
-    - [linux-exploit-suggester.pl](#linux-exploit-suggester.pl)
+    - [linux-exploit-suggester](#linux-exploit-suggester)
   - [HTTP/HTTPS Servers](#httpserver)
   - [Wordlist](#wordlist)
   - [Default Passwords](#default-passwords)
