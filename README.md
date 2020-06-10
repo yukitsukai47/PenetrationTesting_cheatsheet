@@ -28,7 +28,7 @@ Twitter:@yukitsukai1731
     - [Python](#Python)
     - [PHP](#PHP)
     - [Ruby](#Ruby)
-    - [msfvenom](#msfvenom_reverse_shell)
+    - [msfvenom_reverse_shell](#msfvenom_reverse_shell)
       - [Windows(meterpreter)](#Windows(meterpreter))
       - [Windows(netcatなど)](#Windows(netcatなど))
       - [Linux](#Linux)
@@ -40,8 +40,8 @@ Twitter:@yukitsukai1731
 - [特権エスカレーション](#特権エスカレーション)
   - [metasploit local_exploit_suggester](#metasploit(local_exploit_suggester))
   - [Windows](#windows)
-    - [windows-exploit-suggester](#windows-exploit-suggester.py)
-    - [#evilwinrm](#evilwinrm)
+    - [windows-exploit-suggester](#windows-exploit-suggester)
+    - [evilwinrm](#evilwinrm)
   - [Linux](#linux)
     - [linux-exploit-suggester.pl](#linux-exploit-suggester.pl)
   - [HTTP/HTTPS Servers](#httpserver)
@@ -53,6 +53,7 @@ Twitter:@yukitsukai1731
     - [JohnTheRipper](#johntheripper)
     - [hydra](#hydra)
     - [searchsploit](#searchsploit)
+    - [aircrack-ng](#aircrack-ng)
   - [未分類](#未分類)
     - [ssh](#ssh)
       - [sshトンネリング](#sshトンネリング)
@@ -435,6 +436,20 @@ searchsploit - searchsploit -m windows/remote/39161.py
 searchsploit -m searchsploit -m windows/remote/39161.py
 ```
 
+## aircrack-ng
+```
+airmon-ng start wlan0
+iwaconfig
+airodump-ng wlan0mon
+```
+
+```
+airodump-ng --channel 対象のチャンネル --bssid APのMACアドレス -w <output filename> wlan0mon
+```
+
+```
+aircrack-ng <filename>.cap
+```
 
 # 未分類
 ## ssh
