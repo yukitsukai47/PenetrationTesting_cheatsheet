@@ -8,13 +8,16 @@ Twitter:@yukitsukai1731
 # Enum
 ## Nmap
 ```
-kali@kali:$ sudo nmap -sC -sV -oN nmap/initial <ipアドレス>
+kali@kali:$ sudo nmap -sC -sV -oN nmap/initial 10.10.10.1
 ```
 ```
-kali@kali:$ sudo nmap -T5 -p- -oN nmap/full <ipアドレス>
+kali@kali:$ sudo nmap -T5 -p- -oN nmap/full 10.10.10.1
 ```
 ```
-kali@kali:$ nmap --script http-enum <ipアドレス>　-p 80
+kali@kali:~$ sudo nmap --script vuln 10.10.10.1
+```
+```
+kali@kali:$ nmap --script http-enum 10.10.10.1 -p 80
 PORT   STATE SERVICE
 80/tcp open  http
 | http-enum:
@@ -153,7 +156,7 @@ kali@kali:~$ dnsenum zonetransfer.me
 
 ## HTTP(80)
 ### チェック項目
-- robots.txtの確認
+- robots.txt,sitemap.xmlの確認
 - サブドメインの列挙
 - ディレクトリスキャナーの使用
 - CMSの特定
@@ -169,9 +172,10 @@ kali@kali:~$ dnsenum zonetransfer.me
 - 掲載されている画像にヒントが無いか確認
 
 
-### robots.txtの確認
+### robots.txt,sitemap.xmlの確認
 ```
-curl http://<IPアドレス>robots.txt
+curl http://<IPアドレス>/robots.txt
+curl http://<IPアドレス>/sitemap.xml
 ```
 
 ### /etc/hostsファイルの編集
@@ -180,7 +184,38 @@ sudo emacs /etc/hosts
 10.10.10.1  admin.htb
 ```
 
-### Gobuster
+### サブドメインの列挙
+#### DNSサーバの設定ミスを利用したゾーン転送
+```
+dig axfr cronos.htb @10.10.10.13
+```
+
+#### ファジング
+```
+gobuster dns -d erev0s.com -w subdomains-top1mil-5000.txt -i
+```
+- -i...IPアドレスの表示
+
+```
+ffuf -w subdomains-top1mil-5000.txt -u http://website.com/ -H “Host: FUZZ.website.com”
+*単語の量でフィルタリング
+ffuf -w sublists.txt -u http://website.com/ -H “Host: FUZZ.website.com” -fw 3913
+```
+- -fw...単語の量でフィルタリング
+- -fl...行数でフィルタリング
+- -fs...応答のサイズでフィルタリング
+- -fc...ステータスコードでフィルタリング
+- -fr...正規表現のパターンでフィルタリング
+
+### ディレクトリスキャン
+#### dirb
+```
+dirb http://website.com -r -z 10
+```
+- -r...非再帰的にスキャン
+- -z...各リクエストに10ミリ秒の遅延を加える
+
+#### Gobuster
 ```
 gobuster dir -t 50 -u <url>  -w /usr/share/wordlists/dirbuster/directory-list-2.3-medium.txt -x php,txt,py -o <output filename> -k
 ```
@@ -193,7 +228,7 @@ gobuster dir -t 50 -u <url>  -w /usr/share/wordlists/dirbuster/directory-list-2.
 - -k...Skip SSL
 - -s...ステータスコードの指定
 
-### ffuf
+#### ffuf
 ```
 Directory Fuzzing:
 ffuf -c -w /path/to/wordlist -u http://test.com/FUZZ -o <outputfile>
