@@ -243,9 +243,11 @@ ffuf -c -w /path/to/wordlist -u http://test.com/FUZZ -o <outputfile>
 nikto -h <url> -Format txt -o <output filename>
 ```
 - -h...url指定
-- Format...出力するファイルの拡張子を指定
+- -t...スキャンのチューニング
+- -Format...出力するファイルの拡張子を指定
 - -o...ファイルへ出力する
 - -ssl...SSLを使用するサイトで使用
+- -maxtime=30s...指定された時間後にスキャンを停止
 
 ### WPScan
 パッシブスキャン
@@ -869,6 +871,7 @@ patator ssh_login host=10.0.0.1 user=root password=FILE0 0=passwords.txt -x igno
 /usr/share/wordlists/rockyou.txt
 /usr/share/wordlists/dirbuster/directory-list-2.3-medium.txt
 /usr/share/seclists
+/usr/share/seclists/Discoavery/DNS
 ```
 
 ## Wordlistの作成
@@ -1176,7 +1179,7 @@ gem install evil-winrm
 evil-winrm -u <username> -p <password> -i <remote host ip>
 ```
 
-### MS17-010(EternalBlue)
+### MS17-010_EternalBlue(without metasploit)
 エクスプロイトに必要なものを準備
 この最後のmysmb.pyをダウンロードしておかないと、ImportError：mysmbと警告が出る。
 
@@ -1242,6 +1245,6 @@ ServiceExec Error on: 10.10.10.40
 nca_s_proto_error
 Done
 ```
-すると、通信を待ち受けていたnetcatの方でシェルが取得できる。
+通信を待ち受けていたnetcatの方でシェルが取得できる。
 
 ![](./image/2021-05-06-17-49-20.png)
