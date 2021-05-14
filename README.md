@@ -156,7 +156,7 @@ kali@kali:~$ dnsenum zonetransfer.me
 
 ## HTTP(80)
 ### チェック項目
-- robots.txt,sitemap.xmlの確認
+- robots.txt，sitemap.xmlの確認
 - サブドメインの列挙
 - ディレクトリスキャナーの使用
 - CMSの特定
@@ -172,7 +172,7 @@ kali@kali:~$ dnsenum zonetransfer.me
 - 掲載されている画像にヒントが無いか確認
 
 
-### robots.txt,sitemap.xmlの確認
+### robots.txt，sitemap.xmlの確認
 ```
 curl http://<IPアドレス>/robots.txt
 curl http://<IPアドレス>/sitemap.xml
@@ -919,9 +919,9 @@ aircrack-ng <filename>.cap
 - linpeas.shの実行(列挙)
 - カーネルバージョンの確認(uname -a)
 - sudoコマンドの権限確認(sudo -l)
-- cronジョブの確認(crontab,systemd timer)
+- cronジョブの確認(crontab，systemd timer)
 - 開いているポートの確認(netstat -tulpn)
-- 実行中のプロセスの確認(ps -aux,pspy)
+- 実行中のプロセスの確認(ps -aux，pspy)
 - SUIDが有効になっているバイナリの列挙
 - パスワードがWebアプリケーションのスクリプトにハードコーディングされていないか確認
 
@@ -939,7 +939,7 @@ ruby: exec "/bin/sh"
 lua: os.execute('/bin/sh')
 ```
 
-・Ctrl+c,Ctrl+zなどを利用可能にする
+・Ctrl+c，Ctrl+zなどを利用可能にする
 
 ```
 stty raw -echo; fg
