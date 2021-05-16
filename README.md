@@ -761,12 +761,15 @@ set LPORT <port number>
 run
 ```
 
-# Python HttpServer
-攻撃者マシンでのサーバ立ち上げ。
-
+# HttpServer
+・攻撃者マシンでのサーバ立ち上げ。
 ```
-python -m SimpleHTTPServer <ポート番号>
-python3 -m http.server <ポート番号>
+sudo systemctl start apache2
+python -m SimpleHTTPServer 9001
+python3 -m http.server 9001
+php -S 0.0.0.0:9001
+ruby -run -e httpd . -p 9001
+busybox httpd -f -p 9001
 ```
 
 ## Netcat
