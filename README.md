@@ -111,6 +111,13 @@ john --show hash.txt
 nc -vn 10.10.10.1 25
 ```
 ```
+MAIL FROM: <送信元のメールアドレス名前>
+RCPT TO: <送信先のメールアドレス・名前>
+DATA
+<送信内容の記述>
+QUIT
+```
+```
 nmap -p 25 --script smtp-commands 10.10.10.10
 ```
 |  コマンド  |  動作  |
@@ -231,11 +238,16 @@ gobuster dir -t 50 -u <url>  -w /usr/share/wordlists/dirbuster/directory-list-2.
 #### ffuf
 ```
 Directory Fuzzing:
-ffuf -c -w /path/to/wordlist -u http://test.com/FUZZ -o <outputfile>
+ffuf -c -w /path/to/wordlist -u http://test.com/FUZZ -v
+Output File:
+ffuf -c -w /path/to/wordlist -u http://test.com/FUZZ -e .php,txt -v > output.txt
 ```
 - -c...出力をカラーにする
 - -w...wordlistの指定
 - -u...ターゲットURLの指定
+- -e...拡張子の指定(.php,.txt,.aspx)
+- --recursion...再帰的スキャン
+- -v...冗長な出力
 - -o...結果をファイルに出力
 
 ### Nikto
@@ -450,6 +462,7 @@ jenny joe45 john marcus ryuu
 ```
 smbclient -L 10.10.10.1
 smbclient //10.10.10.1/tmp
+smbclient //10.10.10.1/tmp -U <user>
 ```
 
 ### impacket
