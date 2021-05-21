@@ -137,14 +137,23 @@ hostコマンドはデフォルトではAレコードを検索するが、-tオ�
 kali@kali:~$ host -t txt megacorpone.com
 ```
 
-### DNSゾーン転送
+### ドメイン名の特定
+```
+nslookup 10.10.10.13
+```
+
+### サブドメインの列挙
+#### DNSゾーン転送
 権威DNSサーバの設定不備によってゾーン情報を取得できることがある。  
 これによりサーバーの名前、アドレス、機能などを調べることができる。
+```
+dig axfr cronos.htb @10.10.10.13
+```
 ```
 host -l <domain name> <dns server address>
 ```
 
-### DNSRecon
+#### DNSRecon
 DNS列挙スクリプト。
 ```
 1.kali@kali:~$ dnsrecon -d megacorpone.com -t axfr
@@ -153,9 +162,28 @@ DNS列挙スクリプト。
 - -d...ドメイン名の指定
 - -t...実行する列挙の種類(1つ目はゾーン転送)
 - -t...実行する列挙の種類(2つ目はブルートフォース)
-- -D...サブドメイン文字列を含むファイルの指定
+- -D...サブドメイン文字列を含むワードリストファイルの指定
 
-### DNSenum
+#### DNSmap
+サブドメインの列挙。
+```
+┌──(root💀kali)-[/home/kali/htb/boxes/Cronos]
+└─# dnsmap cronos.htb -w /usr/share/seclists/Discovery/DNS/shubs-subdomains.txt                                                                127 ⨯
+dnsmap 0.35 - DNS Network Mapper
+
+[+] searching (sub)domains for cronos.htb using /usr/share/seclists/Discovery/DNS/shubs-subdomains.txt
+[+] using maximum random delay of 10 millisecond(s) between requests
+
+www.cronos.htb
+IP address #1: 10.10.10.13
+[+] warning: internal IP address disclosed
+
+admin.cronos.htb
+IP address #1: 10.10.10.13
+[+] warning: internal IP address disclosed
+```
+
+#### DNSenum
 DNSReconとは異なった出力をするDNS列挙ツール。
 ```
 kali@kali:~$ dnsenum zonetransfer.me
@@ -189,12 +217,6 @@ curl http://<IPアドレス>/sitemap.xml
 ```
 sudo emacs /etc/hosts
 10.10.10.1  admin.htb
-```
-
-### サブドメインの列挙
-#### DNSサーバの設定ミスを利用したゾーン転送
-```
-dig axfr cronos.htb @10.10.10.13
 ```
 
 #### ファジング
