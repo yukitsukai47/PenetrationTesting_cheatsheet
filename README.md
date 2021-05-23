@@ -138,8 +138,17 @@ kali@kali:~$ host -t txt megacorpone.com
 ```
 
 ### ドメイン名の特定
+DNSサーバー = 10.10.10.13  
+ドメイン名を調べたいIPアドレス = 10.10.10.13  
+10.10.10.13 = ns1.cronos.htb
 ```
-nslookup 10.10.10.13
+┌──(kali㉿kali)-[~]
+└─$ nslookup
+> server 10.10.10.13　# DNSサーバーの指定
+Default server: 10.10.10.13
+Address: 10.10.10.13#53
+> 10.10.10.13　# ドメイン名を知りたいIPアドレスの指定
+13.10.10.10.in-addr.arpa        name = ns1.cronos.htb.
 ```
 
 ### サブドメインの列挙
@@ -154,7 +163,8 @@ host -l <domain name> <dns server address>
 ```
 
 #### DNSRecon
-DNS列挙スクリプト。
+DNS列挙スクリプト。  
+サブドメインの列挙。(ゾーン転送とブルートフォース)
 ```
 1.kali@kali:~$ dnsrecon -d megacorpone.com -t axfr
 2.kali@kali:~$ dnsrecon -d megacorpone.com -D ~/list.txt -t brt
@@ -165,7 +175,7 @@ DNS列挙スクリプト。
 - -D...サブドメイン文字列を含むワードリストファイルの指定
 
 #### DNSmap
-サブドメインの列挙。
+サブドメインの列挙。(ブルートフォース)
 ```
 ┌──(root💀kali)-[/home/kali/htb/boxes/Cronos]
 └─# dnsmap cronos.htb -w /usr/share/seclists/Discovery/DNS/shubs-subdomains.txt                                                                127 ⨯
@@ -219,7 +229,7 @@ sudo emacs /etc/hosts
 10.10.10.1  admin.htb
 ```
 
-#### ファジング
+#### サブドメインの列挙
 ```
 gobuster dns -d erev0s.com -w subdomains-top1mil-5000.txt -i
 ```
