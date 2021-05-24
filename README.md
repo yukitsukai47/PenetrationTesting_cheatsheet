@@ -865,7 +865,7 @@ sudo tcpdump -i tun0 icmp
 ```
 
 ## John The Ripper
-・zip
+### zip
 ```
 zip2john a.zip > hash.txt
 john hash.txt 
@@ -873,9 +873,32 @@ or
 john --wordlist=/usr/share/wordlist/rockyou.txt hash.txt
 ```
 
-・md5
+### ssh
+```
+ssh2john id_rsa > hash.txt
+john --wordlist=/usr/share/wordlists/rockyou.txt hash.txt
+john --show hash.txt
+```
+
+### md5
 ```
 john --wordlist=/usr/share/wordlist/rockyou.txt --format=Raw-MD5 hash.txt
+```
+
+### 同じファイルをクラックした時に出るエラー
+```
+┌──(kali㉿kali)-[~/htb/boxes/Delivery]
+└─$ john --wordlist=/usr/share/wordlist/rockyou.txt hash
+Using default input encoding: UTF-8
+Loaded 1 password hash (bcrypt [Blowfish 32/64 X3])
+No password hashes left to crack (see FAQ)
+```
+```
+┌──(kali㉿kali)-[~/htb/boxes/Delivery]
+└─$ john --show hash                                                                                                
+?:PleaseSubscribe!21
+
+1 password hash cracked, 0 left
 ```
 
 ## hashcat
@@ -972,6 +995,15 @@ crunch 2 3 -o dict.txt
 ```
 cupp -i
 ```
+
+### hashcat(ルールベース攻撃)
+hashcatを用いて、キーワードを元にルールを用いてワードリストを作成することができる。  
+ルールは自分で作成することも可能だが、/usr/share/hashcat/rulesを用いることで簡単にワードリストを作成することが可能。
+```
+hashcat -r /usr/share/hashcat/rules/best64.rule --stdout keyword.txt
+```
+hashcat:Rule-based Attack  
+https://hashcat.net/wiki/doku.php?id=rule_based_attack
 
 ## aircrack-ng
 ```
