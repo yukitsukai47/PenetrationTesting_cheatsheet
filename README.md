@@ -821,7 +821,7 @@ set LPORT <port number>
 run
 ```
 
-# HttpServer
+## HttpServer
 ・攻撃者マシンでのサーバ立ち上げ。
 ```
 sudo systemctl start apache2
@@ -859,15 +859,10 @@ searchsploit - searchsploit -m windows/remote/39161.py
 searchsploit -m searchsploit -m windows/remote/39161.py
 ```
 
-## hashcat
+## tcpdump
 ```
-hashcat -m 0 -a 0 <パスワードファイル>　/usr/share/wordlist/rockyou.txt
+sudo tcpdump -i tun0 icmp
 ```
-- -m 0 = MD5
-- -a 0 = 辞書攻撃
-
-Hash tyep:
-https://hashcat.net/wiki/doku.php?id=example_hashes
 
 ## John The Ripper
 ・zip
@@ -882,6 +877,16 @@ john --wordlist=/usr/share/wordlist/rockyou.txt hash.txt
 ```
 john --wordlist=/usr/share/wordlist/rockyou.txt --format=Raw-MD5 hash.txt
 ```
+
+## hashcat
+```
+hashcat -m 0 -a 0 <パスワードファイル>　/usr/share/wordlist/rockyou.txt
+```
+- -m 0 = MD5
+- -a 0 = 辞書攻撃
+
+Hash tyep:
+https://hashcat.net/wiki/doku.php?id=example_hashes
 
 ## hydra
 - -l...単一のユーザー名の指定
