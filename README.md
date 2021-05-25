@@ -1102,6 +1102,9 @@ sudo -l
 #### crontab
 ```
 cat /etc/crontab
+crontab -l
+ls -al /etc/cron* /etc/at*
+cat /etc/cron* /etc/at* /etc/anacrontab /var/spool/cron/crontabs/root 2>/dev/null | grep -v "^#"
 ```
 #### systemd timersの確認
 /etc/systemd/system/配下にファイルを配置
