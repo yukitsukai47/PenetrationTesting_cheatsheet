@@ -693,32 +693,42 @@ mysql -u root -e 'SHOW DATABASES;'
 - -p...パスワードの指定
 - -u...ユーザー名の指定
 
-データベース一覧の表示
+*データベース一覧の表示
 ```
 mysql > show databases;
 ```
 
-データベースの追加
+*データベースの追加
 ```
 mysql > create database sample_db;
 ```
 
-テーブル一覧の表示
+*テーブル一覧の表示
 ```
 mysql > show tables;
 ```
 
-ユーザ情報取得
+*全レコードを選択
 ```
-SELECT Host, User, Password FROM mysql.user;
+SELECT * FROM <テーブル名>;
 ```
 
-ユーザの追加
+*テーブル構造の確認(フィールドを整理して表示してくれるため、下記のユーザ情報取得をすると見やすい)
+```
+describe <テーブル名>;
+```
+
+*ユーザ情報取得
+```
+SELECT Host, User, Password FROM <テーブル名>;
+```
+
+*ユーザの追加
 ```
 create user <追加するusername>@<host name> IDENTIFIED BY <password>;
 ```
 
-権限付与
+*権限付与
 ```
 grant all privileges on test_db.* to <username>@<host name> IDENTIFIED BY <password>;
 ```
