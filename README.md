@@ -105,6 +105,12 @@ ssh2john id_rsa > hash.txt
 john --wordlist=/usr/share/wordlists/rockyou.txt hash.txt
 john --show hash.txt
 ```
+```
+┌──(kali㉿kali)-[~/htb/boxes/Valentine]
+└─$ openssl rsa -in id_rsa -out decrypt_id_rsa                                                                                                                                      1 ⨯
+Enter pass phrase for test:<input key>
+writing RSA key
+```
 
 ## SMTP(25)
 ```
@@ -1052,17 +1058,24 @@ hashcat -r /usr/share/hashcat/rules/best64.rule --stdout keyword.txt
 hashcat:Rule-based Attack  
 https://hashcat.net/wiki/doku.php?id=rule_based_attack
 
+## base64,16進数 → テキスト
+```
+cat test.txt | base64 -d
+echo "aGVhcnRibGVlZGJlbGlldmV0aGVoeXBlCg==" | base64 -d
+```
+```
+cat test.txt | xxd -r -ps
+```
+
 ## aircrack-ng
 ```
 airmon-ng start wlan0
 iwaconfig
 airodump-ng wlan0mon
 ```
-
 ```
 airodump-ng --channel 対象のチャンネル --bssid APのMACアドレス -w <output filename> wlan0mon
 ```
-
 ```
 aircrack-ng <filename>.cap
 ```
@@ -1222,8 +1235,23 @@ sed -i 's/\r//' *.sh
 ### pspy
 ps auxコマンドでは確認できない定期的にUID=0(root権限)で実行されているスクリプトを確認することができる。  
 馴染みのないプロセスが動作している場合、そのプロセスが権限昇格の鍵になる場合もあるため、要チェック。  
+
+
+### tools
+php-reverse-shell:  
+https://github.com/pentestmonkey/php-reverse-shell   
+
+privilege-escalation-awesome-scripts-suite:  
+https://github.com/carlospolop/privilege-escalation-awesome-scripts-suite  
+
 pspy:  
-https://github.com/DominicBreuker/pspy
+https://github.com/DominicBreuker/pspy  
+
+SUID3NUM:  
+https://github.com/Anon-Exploiter/SUID3NUM
+
+linux-exploit-suggester2:    
+https://github.com/jondonas/linux-exploit-suggester-2
 
 
 ### ユーザを指定してコマンドを実行
