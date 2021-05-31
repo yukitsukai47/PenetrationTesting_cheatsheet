@@ -1153,11 +1153,14 @@ ls -al /etc/cron* /etc/at*
 cat /etc/cron* /etc/at* /etc/anacrontab /var/spool/cron/crontabs/root 2>/dev/null | grep -v "^#"
 ```
 #### systemd timersの確認
-/etc/systemd/system/配下にファイルを配置
+/etc/systemd/system/配下にファイルを配置されているファイルをチェック(見たことがないファイルが置かれていないか)
 - .service(定期実行するファイルのパスなどを記述)
 - .timer(時間間隔の指定)
 ```
 systemctl list-timers --all
+```
+```
+find / -name *timer -type f 2>>/dev/null
 ```
 
 ##### (備考)systemd timerの有効化と起動
@@ -1176,11 +1179,6 @@ netstat -an(linux以外)
 ```
 ps -aux
 ```
-
-#### pspy
-実行しているプロセスをダンプ。  
-https://github.com/DominicBreuker/pspy
-
 
 ### ファイルの検索
 ```
