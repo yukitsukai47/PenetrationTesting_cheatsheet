@@ -2,9 +2,6 @@
 Hack The Boxの攻略やOSCPの取得を目指して、まとめているチートシートです。  
 随時更新して成長していきます。
 
-![](./image/2021-05-06-18-10-32.png)  
-Twitter:@yukitsukai1731
-
 # Enum
 ## Nmap
 ```
@@ -236,14 +233,25 @@ sudo emacs /etc/hosts
 10.10.10.1  admin.htb
 ```
 
-#### サブドメインの列挙
+### サブドメインの列挙
+#### Gobuster(DNSモード)
+DNSサブドメインのブルートフォース。  
+-dオプションで指定したドメインのサブドメインを見つけるために使用する。
 ```
-gobuster dns -d erev0s.com -w subdomains-top1mil-5000.txt -i
+gobuster dns -d test.com -w subdomains-top1mil-5000.txt -i
 ```
+- -d...ドメイン名の指定
 - -i...IPアドレスの表示
 
+#### Gobuster(Vhostモード)
+組織が複数のドメイン名を1代のサーバーでホストしている仮想ホストを見つけることが可能。
 ```
-ffuf -w subdomains-top1mil-5000.txt -u http://website.com/ -H “Host: FUZZ.website.com”
+gobuster vhost -u http://10.10.10.1/ -w /usr/share/seclists/Discovery/DNS/subdomains-top1million-11000.txt
+```
+
+### ffuf
+```
+ffuf -w /usr/share/seclists/Discovery/DNS/subdomains-top1mil-5000.txt -u http://website.com/ -H “Host: FUZZ.website.com”
 *単語の量でフィルタリング
 ffuf -w sublists.txt -u http://website.com/ -H “Host: FUZZ.website.com” -fw 3913
 ```
@@ -253,7 +261,7 @@ ffuf -w sublists.txt -u http://website.com/ -H “Host: FUZZ.website.com” -fw 
 - -fc...ステータスコードでフィルタリング
 - -fr...正規表現のパターンでフィルタリング
 
-### ディレクトリスキャン
+### サブディレクトリの列挙
 #### dirb
 ```
 dirb http://website.com -r -z 10
