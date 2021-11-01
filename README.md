@@ -11,7 +11,16 @@ kali@kali:$ sudo nmap -sC -sV -oN nmap/initial 10.10.10.1
 kali@kali:$ sudo nmap -T5 -p- -oN nmap/full 10.10.10.1
 ```
 ```
-kali@kali:~$ sudo nmap --script vuln 10.10.10.1
+kali@kali:$ sudo nmap 10.10.10.1 -v --min-rate=10000
+(上記の結果を元に)kali@kali:$ sudo nmap -sC -sV -oN nmap/initial -v -p 22,80,3000
+```
+```
+ports=$(nmap -p- --min-rate=1000 -T4 10.10.10.1 | grep ^[0-9] | cut -d '/' -f 1 | tr
+'\n' ',' | sed s/,$//)
+nmap -p$ports -sV -sC 10.10.10.242
+```
+```
+kali@kali:$ sudo nmap --script vuln 10.10.10.1
 ```
 ```
 kali@kali:$ nmap --script http-enum 10.10.10.1 -p 80
@@ -31,22 +40,25 @@ PORT   STATE SERVICE
 |   /wp-admin/upgrade.php: Wordpress login page.
 |_  /readme.html: Interesting, a readme.
 ```
-- -sS...ステルス/SYNスキャン
-- -sT...TCPコネクトスキャン
-- -sU...UDPスキャン
-- -sn...ネットワークスイープ
-- -A...OSのバージョン検出
-- -sC...--script=defaultの意味
-- -sV...特定のポートで動作しているサービスを識別
-- --script=...様々なスクリプトの使用
-  - dns-zone-transfer
-  - smb-os-discovery
-  - http-enum
-  - vuln
-- -O...OSフィンガープリンティング(ターゲットのOS判別)
-- -v...詳細の出力
-- -oG...grep可能なファイル形式に出力
-- --top-ports...優先度の高い順にポートを検出(/usr/share/nmap/nmap-servicesに依存)
+|  オプション  |  説明  |
+| ---- | ---- |
+|  -sS  |  ステルス/SYNスキャン  |
+|  -sT  |  TCPスキャン  |
+|  -sU  |  UDPスキャン  |
+|  -sn  |  ネットワークスイープ  |
+|  -A   |  OSのバージョン検出   |
+|  -sC  |  --script=defaultの意味  |
+|  -sV  |  特定のポートで動作しているサービスを識別  |
+|  -O   |  OSフィンガープリンティング(ターゲットのOS判別)  |
+|  -v   |  詳細の出力  |
+|  -oG  |  grep可能なファイル形式に出力  |
+| --top-ports  |  優先度の高い順にポートを検出(/usr/share/nmap/nmap-servicesに依存)  |
+| --script= |  様々なスクリプトの使用  |
+|  |  dns-zone-transfer  |
+|  |  smb-os-discovery  |
+|  |  http-enum  |
+|  |  vuln  |
+
 
 ## Masscan
 Massscanはインターネット全体を約6分でスキャンし、1秒間に1000万パケットという驚異的な数のパケットを送信する最速のポートスキャナー。  
