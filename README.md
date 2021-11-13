@@ -11,7 +11,7 @@ kali@kali:$ sudo nmap -sC -sV -oN nmap/initial 10.10.10.1
 kali@kali:$ sudo nmap -T5 -p- -oN nmap/full 10.10.10.1
 ```
 ```
-kali@kali:$ sudo nmap 10.10.10.1 -v --min-rate=10000
+kali@kali:$ sudo nmap 10.10.10.1 -v -p- --min-rate=10000
 (上記の結果を元に)kali@kali:$ sudo nmap -sC -sV -oN nmap/initial -v -p 22,80,3000
 ```
 ```
@@ -602,15 +602,22 @@ kali@kali:~$ ls -1 /usr/share/nmap/scripts/nfs*
 kali@kali:~$ nmap -p 111 --script nfs* 10.11.1.72
 ```
 
+### /usr/sbin/showmountを使用したNFS共有の一覧表示
+```
+/usr/sbin/showmount -e 10.10.10.1
+Export list for 10.10.10.1:
+/home *
+```
+
 ### NFSのマウント
 mountコマンドを使用することでファイルのアクセスできるようになる。  
-オプション-o nolockでファイルロックを無効にする。
 ```
-kali@kali:~$ mkdir test
-kali@kali:~$ sudo mount -o nolock 10.10.10.1:/home ~/test/
-kali@kali:~$ cd test/ && ls
-jenny joe45 john marcus ryuu
+kali@kali:~$ mkdir /tmp/mount
+kali@kali:~$ sudo mount -t nfs 10.10.10.1:/home /tmp/mount/ -nolock
+kali@kali:~$ cd /tmp/mount && ls
 ```
+- -t nfs...マウントするデバイスタイプの指定(今回はnfs)
+- -nolock...NLMロックを使用しない
 
 ## SMB(139,445)
 ### SMBの列挙(Nmap NSE Scripts)
@@ -633,19 +640,25 @@ kali@kali:~$ nmap -v -p 139,445 --script=smb-vuln-ms08-067 --script-args=unsafe=
 enum4linx 10.10.10.1
 ```
 ```
+enum4linux -a 10.10.10.1
+```
+```
 enum4linux -S -U -o 10.10.10.1
 ```
 - -S...共有リスト取得
 - -U...ユーザリスト取得
 - -o...OS情報取得
+- -A...全ての基本的な列挙
 
 ### smbclient
 匿名ログインが有効になっているかの確認。
 ```
 smbclient -L 10.10.10.1
 smbclient //10.10.10.1/tmp
-smbclient //10.10.10.1/tmp -U <user>
+smbclient //10.10.10.1/tmp -U <username>
 ```
+- -U...ユーザ名の指定
+- -p...ポートの指定
 
 ### smbmap
 ドメイン全体のsamba共有ドライブを列挙するために使用。
@@ -714,7 +727,7 @@ nmap --script smb-enum-* -p 139,445, 10.10.10.1
 
 ### NetBIOS(139)
 NetBIOSはローカルネットワーク上のコンピュータが相互に通信できるようにするセッション層のプロトコルである。  
-最近のSMBの実装ではNetBIOSがなくても動作するが、NetBIOS over TCP(NBT)は後方互換性のために必要で、ともに有効になっている場合が多い。このt前、2つのサービスの列挙は一緒に行われる。
+最近のSMBの実装ではNetBIOSがなくても動作するが、NetBIOS over TCP(NBT)は後方互換性のために必要で、ともに有効になっている場合が多い。
 ```
 kali@kali:~$ nmap -v -p 139,445 -oG result.txt 10.10.10.1
 ```
@@ -1066,6 +1079,7 @@ https://hashcat.net/wiki/doku.php?id=example_hashes
 - -s...カスタムポート(sshが22番以外のポートで使用されている時や、https/443を調べる場合に使用)
 - -f...ログインとパスワードの組み合わせが少なくとも1つ見つかったら終了
 - -V...各試行のログインとパスワードを表示(実行中の試行の様子が確認できる)
+- -t...スレッド数の指定
 
 ### HTTP Post Form
 http-post-formを使用するためには「:」で区切られた3つのパラメータが必要。  
