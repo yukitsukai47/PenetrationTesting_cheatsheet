@@ -1565,6 +1565,8 @@ Set-ExecutionPolicy -ExecutionPolicy Unrestricted -Scope CurrentUser
 全ての権限を表示:
 whoami /priv
 ```
+```
+一般的に悪用される特権の一覧:
 - SeImpersonatePrivilege
 - SeAssignPrimaryPrivilege
 - SeTcbPrivilege
@@ -1574,7 +1576,7 @@ whoami /priv
 - SeLoadDriverPrivilege
 - SeTakeOwnershipPrivilege
 - SeDebugPrivilege
-
+```
 #### metasploit(token impersonation)
 ```
 シークレットモードの読み込み:
