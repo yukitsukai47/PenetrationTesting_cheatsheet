@@ -1828,7 +1828,7 @@ scriptmanager@bashed:/$ whoami
 scriptmanager
 ```
 
-## PrivEsc - Enum tools(Linux)
+## PrivEsc Tools(Linux)
 linpease.sh:  
 https://github.com/carlospolop/privilege-escalation-awesome-scripts-suite  
 
@@ -2537,7 +2537,7 @@ evil-winrm -u <username> -p <password> -i <remote host ip>
 ```
 
 ## PrivEsc Tools(Windows)
-Windows Sysinternals:
+Windows Sysinternals:  
 https://docs.microsoft.com/en-us/sysinternals/  
 
 PEASS-ng(winpeas.bat):  
