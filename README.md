@@ -1636,6 +1636,14 @@ find / -type f -a \( -perm -u+s -o -perm -g+s \) -exec ls -l {} \; 2> /dev/null
 このソフトウェアには既知のエクスプロイトが存在する(CVE-2016-1531)。  
 これらを利用してエクスプロイトすることで権限昇格できる可能性がある。
 
+### これまでにHackTheBoxなどで発見した権限昇格に利用できるSUIDバイナリ
+```
+exim-4.84-3
+nfsen-1.3.7
+screen-4.5.0
+keybase-redirector
+```
+
 ## SUID/SGID Executables - Shared Object Injection
 SUID実行可能ファイル(今回はsuid-soという名前の実行可能ファイル)が共有オブジェクトインジェクションに対して脆弱な場合、権限昇格できる可能性がある。  
 ファイルに対して、straceを実行して"open|access|no such file"を検索する。
