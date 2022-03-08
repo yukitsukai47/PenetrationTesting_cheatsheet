@@ -2927,6 +2927,10 @@ Apache James Server 2.3.2 - Remote Command Execution:
 使用条件としてJAMES Remote Administrationがデフォルトのroot:rootでログインできるのに加えて、エクスプロイト実行後に誰かがログインする必要がある。
 エクスプロイト後にsshなどでログインされることでペイロードが発火するため、実世界では誰かがログインするのを待つ必要がある。
 https://www.exploit-db.com/exploits/35513
+
+pfSense < 2.1.4 - 'status_rrd_graph_img.php' Command Injection:  
+認証情報を知っていることが前提となる。
+https://www.exploit-db.com/exploits/43560
 ```
 
 ## Privilege Escalation(Linux)
