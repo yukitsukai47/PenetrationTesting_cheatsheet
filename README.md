@@ -402,6 +402,15 @@ HTTPリクエストをBurpから直接送信することで、繰り返しHTTP�
 HTTPレスポンスの改ざんが可能。  
 これを利用することで、ステータスコード「302 Found」などで目的のページにたどり着く前に移動させられる際に、「200 Found」に変更してやることで目的のページへたどり着くことが可能。
 
+### apache2
+実行権限の確認:  
+ルートディレクトリに書き込んだファイルはAssignUserID <ユーザ名> <グループ名>で記述された権限で実行される。
+```
+/etc/apache2/sites-enabled/<configファイル>
+
+AssignUserID joanna joanna
+```
+
 ### ^LFI(ローカルファイルインクルード)
 file_get_contents関数の不備
 ```
@@ -3256,6 +3265,10 @@ https://www.exploit-db.com/exploits/38861
 
 nostromo 1.9.6 - Remote Code Execution:  
 https://www.exploit-db.com/exploits/47837
+
+OpenNetAdmin 18.1.1 - Remote Code Execution:  
+URLにはhttp://10.10.10.171/ona/ のように最後にスラッシュを付ける。
+https://www.exploit-db.com/exploits/47691
 ```
 
 ## Privilege Escalation(Linux)
