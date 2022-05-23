@@ -818,6 +818,13 @@ app/etc/local.xml
 magescan:  
 https://github.com/steverobbins/magescan.git
 
+### Umbraco
+#### 認証情報
+```
+/App_Data/Umbraco.sdf
+```
+
+
 ## phpMyAdmin
 MySQLサーバをWebブラウザで管理するためのデータベース接続ツール。  
 SQL文を記述することなく、MySQLの操作が行える。  
@@ -1013,8 +1020,8 @@ enum4linux -S -U -o 10.10.10.1
 ### smbclient
 匿名ログインが有効になっているかの確認。
 ```
-smbclient -L -N 10.10.10.1
-smbclient -L 10.10.10.1
+smbclient -L -N //10.10.10.1
+smbclient -L //10.10.10.1
 smbclient //10.10.10.1/tmp
 smbclient //10.10.10.1/tmp -U <username>
 ```
