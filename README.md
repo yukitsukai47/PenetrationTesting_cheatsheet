@@ -562,6 +562,8 @@ SQLmap:
 sqlmap -u http://192.168.56.1/vuln.php?id=1
 sqlmap -u http：//192.168.0.1/vuln.php?id=1 --user-agent "Mozilla / 5.0（X11; Linux x86_64; rv：60.0 ）Gecko / 20100101 Firefox / 60.0 "
 ```
+### NoSQLインジェクション
+[]
 
 ### XXE(XML External Entitiy)
 下のエクスプロイトでは、&xxe;と記述した箇所でfile:///etc/passwdを実行させている。
