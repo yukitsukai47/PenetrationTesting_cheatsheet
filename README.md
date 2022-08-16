@@ -96,7 +96,7 @@ ftp> ls
 passiveコマンドを入力することで解消される。
 ```
 ftp> passive
-Passive mode: off; fallback to active mode: off.
+Passive moden: off; fallback to active mode: off.
 ftp> ls
 200 EPRT command successful. Consider using EPSV.
 150 Here comes the directory listing.
@@ -108,12 +108,27 @@ drwxr-xr-x    2 1001     0            4096 May 26  2020 js
 drwxr-xr-x   11 1001     0            4096 May 26  2020 lib
 226 Directory send OK.
 ```
+また、ファイルをダウンロードする際には、バイナリモードにしておくとトラブルを避けられる可能性がある。
+```
+ftp> binary
+```
 
 ## SSH(22)
-### SCP
-カレントディレクトリにsecret.zipをダウンロード
+### scp
+sshを利用したファイルの受け渡し。
 ```
-kali@kali:$ scp charix@10.10.10.84:/home/charix/secret.zip .
+ダウンロード
+# Linux
+scp charix@10.10.10.84:/home/charix/secret.zip .
+# Windows
+scp ariah@192.168.79.99:C:/ftp/Infrastructure.pdf . 
+```
+```
+アップロード
+# Linux
+scp linpeas.sh charix@10.10.10.84:/home/charix/secret.zip
+# Windows
+scp winpeas.exe ariah@192.168.79.99:C:/Users/ariah/Desktop
 ```
 
 ### SSHポートフォワーディング
